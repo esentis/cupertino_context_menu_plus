@@ -1,8 +1,5 @@
 # CupertinoContextMenuPlus
 
-
-https://github.com/user-attachments/assets/8506be75-1669-42b2-ab33-f601248c3659
-
 A forked and enhanced version of Flutter's `CupertinoContextMenu` with:
 
 - `topWidget`: an optional widget shown above the preview when the menu opens.
