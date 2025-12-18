@@ -4,6 +4,8 @@
 
 ![image](https://i.ibb.co/sv61PD2G/short.gif)
 
+![image](https://i.ibb.co/bVJQ1vR/homer.gif)
+
 ---
 
 A forked and enhanced version of Flutter's `CupertinoContextMenu` with:
