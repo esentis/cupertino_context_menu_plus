@@ -1,3 +1,5 @@
-## 0.0.1
+## [1.0.0]
 
-* TODO: Describe initial release.
+### 2025-12-19
+
+- 🎉 Initial release.
