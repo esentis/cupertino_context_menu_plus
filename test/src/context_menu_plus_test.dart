@@ -30,13 +30,6 @@ void main() {
     );
   }
 
-  List<Widget> getActions({int number = 10}) {
-    return List<Widget>.generate(
-      number,
-      (int index) => CupertinoContextMenuAction(child: Text('Action $index')),
-    );
-  }
-
   Widget getBuilder(BuildContext context, Animation<double> animation) {
     return getChild();
   }

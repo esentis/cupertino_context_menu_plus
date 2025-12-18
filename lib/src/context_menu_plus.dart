@@ -52,13 +52,13 @@ const Color _kBackgroundColor = CupertinoDynamicColor.withBrightness(
   darkColor: Color(0xFF212122),
 );
 
-typedef _DismissCallback = void Function(
-    BuildContext context, double scale, double opacity);
+typedef _DismissCallback =
+    void Function(BuildContext context, double scale, double opacity);
 
 /// A function that builds the child and handles the transition between the
 /// default child and the preview when the CupertinoContextMenuPlus is open.
-typedef CupertinoContextMenuBuilder = Widget Function(
-    BuildContext context, Animation<double> animation);
+typedef CupertinoContextMenuBuilder =
+    Widget Function(BuildContext context, Animation<double> animation);
 
 // Given a GlobalKey, return the Rect of the corresponding RenderBox's
 // paintBounds in global coordinates.
@@ -162,12 +162,11 @@ class CupertinoContextMenuPlus extends StatefulWidget {
     this.location,
     this.showGrowAnimation = true,
     this.previewLongPressTimeout = kDefaultPreviewLongPressTimeout,
-  })  : assert(actions.isNotEmpty),
-        assert(modalTransitionDuration > Duration.zero),
-        assert(modalReverseTransitionDuration > Duration.zero),
-        assert(previewLongPressTimeout > Duration.zero),
-        builder =
-            ((BuildContext context, Animation<double> animation) => child);
+  }) : assert(actions.isNotEmpty),
+       assert(modalTransitionDuration > Duration.zero),
+       assert(modalReverseTransitionDuration > Duration.zero),
+       assert(previewLongPressTimeout > Duration.zero),
+       builder = ((BuildContext context, Animation<double> animation) => child);
 
   /// Creates a context menu with a custom [builder] controlling the widget.
   ///
@@ -192,11 +191,11 @@ class CupertinoContextMenuPlus extends StatefulWidget {
     this.location,
     this.showGrowAnimation = true,
     this.previewLongPressTimeout = kDefaultPreviewLongPressTimeout,
-  })  : assert(actions.isNotEmpty),
-        assert(modalTransitionDuration > Duration.zero),
-        assert(modalReverseTransitionDuration > Duration.zero),
-        assert(previewLongPressTimeout > Duration.zero),
-        child = null;
+  }) : assert(actions.isNotEmpty),
+       assert(modalTransitionDuration > Duration.zero),
+       assert(modalReverseTransitionDuration > Duration.zero),
+       assert(previewLongPressTimeout > Duration.zero),
+       child = null;
 
   /// Exposes the default border radius for matching iOS 16.0 behavior. This
   /// value was eyeballed from the iOS simulator running iOS 16.0.
@@ -469,10 +468,13 @@ class CupertinoContextMenuPlus extends StatefulWidget {
   /// Defaults to [kDefaultActionsBorderRadius].
   final BorderRadius? actionsBorderRadius;
 
-  /// If true, clicking on the [CupertinoContextMenuAction]s will
-  /// produce haptic feedback.
+  /// If true, accepting the long-press (opening the menu) produces haptic
+  /// feedback.
   ///
-  /// Uses [HapticFeedback.heavyImpact] when activated.
+  /// Uses [HapticFeedback.heavyImpact] when the gesture is accepted.
+  ///
+  /// Note: this does not automatically add haptics to the action widgets; if
+  /// you need that, trigger haptics in your action callbacks.
   /// Defaults to false.
   final bool enableHapticFeedback;
 
@@ -521,8 +523,8 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
   late final TapGestureRecognizer _tapGestureRecognizer;
 
   double get _animationOpensAt => CupertinoContextMenuPlus.animationOpensAtFor(
-        widget.previewLongPressTimeout,
-      );
+    widget.previewLongPressTimeout,
+  );
 
   double get _midpoint => _animationOpensAt / 2;
 
@@ -546,6 +548,7 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
   void didUpdateWidget(CupertinoContextMenuPlus oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.previewLongPressTimeout != widget.previewLongPressTimeout) {
+      _dismissContextMenuRoute();
       _closeContextMenu();
       _openController.removeStatusListener(_onDecoyAnimationStatusChange);
       _openController.dispose();
@@ -561,6 +564,17 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
         });
       }
     }
+  }
+
+  void _dismissContextMenuRoute() {
+    final _ContextMenuRoute<void>? route = _route;
+    if (route == null) {
+      return;
+    }
+
+    route.animation?.removeStatusListener(_routeAnimationStatusListener);
+    route.navigator?.removeRoute(route);
+    _route = null;
   }
 
   void _listenerCallback() {
@@ -615,10 +629,12 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
         2 * (childRect.center.dx - padding.left) / childRect.width;
     final double topMaxScale =
         2 * (childRect.center.dy - padding.top) / childRect.height;
-    final double rightMaxScale = 2 *
+    final double rightMaxScale =
+        2 *
         (size.width - padding.right - childRect.center.dx) /
         childRect.width;
-    final double bottomMaxScale = 2 *
+    final double bottomMaxScale =
+        2 *
         (size.height - padding.bottom - childRect.center.dy) /
         childRect.height;
     final double minWidth = math.min(leftMaxScale, rightMaxScale);
@@ -836,6 +852,7 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
 
   @override
   void dispose() {
+    _dismissContextMenuRoute();
     _closeContextMenu();
     _tapGestureRecognizer.dispose();
     _openController.dispose();
@@ -907,7 +924,8 @@ class _DecoyChildState extends State<_DecoyChild>
     final int totalMs = _totalAnimationDurationMs(
       widget.previewLongPressTimeout,
     );
-    final double endPause = ((totalOpenAnimationLength * totalMs) / previewMs) -
+    final double endPause =
+        ((totalOpenAnimationLength * totalMs) / previewMs) -
         totalOpenAnimationLength;
 
     // The timing on the animation was eyeballed from the Xcode iOS simulator
@@ -948,8 +966,9 @@ class _DecoyChildState extends State<_DecoyChild>
       curve: Interval(0.0, widget.animationOpensAt),
     );
 
-    final BorderRadiusGeometry? borderRadius =
-        widget.child != null ? _tryExtractBorderRadius(widget.child!) : null;
+    final BorderRadiusGeometry? borderRadius = widget.child != null
+        ? _tryExtractBorderRadius(widget.child!)
+        : null;
 
     _boxDecoration = DecorationTween(
       begin: BoxDecoration(
@@ -1000,7 +1019,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
     required List<Widget> actions,
     required _ContextMenuLocation contextMenuLocation,
     this.barrierLabel,
-    CupertinoContextMenuBuilder? builder,
+    required CupertinoContextMenuBuilder builder,
     required Rect previousChildRect,
     required bool previousChildRectWasScaled,
     required double scaleFactor,
@@ -1014,28 +1033,28 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
     required Duration reverseTransitionDuration,
     Color? actionsBackgroundColor,
     BorderRadius? actionsBorderRadius,
-  })  : assert(actions.isNotEmpty),
-        assert(backdropBlurSigma >= 0.0),
-        assert(transitionDuration > Duration.zero),
-        assert(reverseTransitionDuration > Duration.zero),
-        _actions = actions,
-        _builder = builder,
-        _contextMenuLocation = contextMenuLocation,
-        _previousChildRect = previousChildRect,
-        _previousChildRectWasScaled = previousChildRectWasScaled,
-        _scaleFactor = scaleFactor,
-        _topWidget = topWidget,
-        _backdropBlurSigma = backdropBlurSigma,
-        _backdropBlurCurve = backdropBlurCurve,
-        _backdropBlurReverseCurve = backdropBlurReverseCurve,
-        _barrierColor = barrierColor,
-        _transitionDuration = transitionDuration,
-        _reverseTransitionDuration = reverseTransitionDuration,
-        _actionsBackgroundColor = actionsBackgroundColor,
-        _actionsBorderRadius = actionsBorderRadius;
+  }) : assert(actions.isNotEmpty),
+       assert(backdropBlurSigma >= 0.0),
+       assert(transitionDuration > Duration.zero),
+       assert(reverseTransitionDuration > Duration.zero),
+       _actions = actions,
+       _builder = builder,
+       _contextMenuLocation = contextMenuLocation,
+       _previousChildRect = previousChildRect,
+       _previousChildRectWasScaled = previousChildRectWasScaled,
+       _scaleFactor = scaleFactor,
+       _topWidget = topWidget,
+       _backdropBlurSigma = backdropBlurSigma,
+       _backdropBlurCurve = backdropBlurCurve,
+       _backdropBlurReverseCurve = backdropBlurReverseCurve,
+       _barrierColor = barrierColor,
+       _transitionDuration = transitionDuration,
+       _reverseTransitionDuration = reverseTransitionDuration,
+       _actionsBackgroundColor = actionsBackgroundColor,
+       _actionsBorderRadius = actionsBorderRadius;
 
   final List<Widget> _actions;
-  final CupertinoContextMenuBuilder? _builder;
+  final CupertinoContextMenuBuilder _builder;
   final GlobalKey _childGlobalKey = GlobalKey();
   final _ContextMenuLocation _contextMenuLocation;
   bool _externalOffstage = false;
@@ -1063,8 +1082,8 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
   static final RectTween _rectTween = RectTween();
   static final Animatable<Rect?> _rectAnimatable = _rectTween.chain(_curve);
   static final RectTween _rectTweenReverse = RectTween();
-  static final Animatable<Rect?> _rectAnimatableReverse =
-      _rectTweenReverse.chain(_curveReverse);
+  static final Animatable<Rect?> _rectAnimatableReverse = _rectTweenReverse
+      .chain(_curveReverse);
   static final RectTween _sheetRectTween = RectTween();
   final Animatable<Rect?> _sheetRectAnimatable = _sheetRectTween.chain(_curve);
   final Animatable<Rect?> _sheetRectAnimatableReverse = _sheetRectTween.chain(
@@ -1074,11 +1093,11 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
   final Animatable<Rect?> _topWidgetRectAnimatable = _topWidgetRectTween.chain(
     _curve,
   );
-  final Animatable<Rect?> _topWidgetRectAnimatableReverse =
-      _topWidgetRectTween.chain(_curveReverse);
+  final Animatable<Rect?> _topWidgetRectAnimatableReverse = _topWidgetRectTween
+      .chain(_curveReverse);
   static final Tween<double> _sheetScaleTween = Tween<double>();
-  static final Animatable<double> _sheetScaleAnimatable =
-      _sheetScaleTween.chain(_curve);
+  static final Animatable<double> _sheetScaleAnimatable = _sheetScaleTween
+      .chain(_curve);
   static final Animatable<double> _sheetScaleAnimatableReverse =
       _sheetScaleTween.chain(_curveReverse);
   final Tween<double> _opacityTween = Tween<double>(begin: 0.0, end: 1.0);
@@ -1110,9 +1129,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
         final bool reversing = routeAnimation.status == AnimationStatus.reverse;
         final double blurT = clampDouble(
           (reversing ? _backdropBlurReverseCurve : _backdropBlurCurve)
-              .transform(
-            t,
-          ),
+              .transform(t),
           0.0,
           1.0,
         );
@@ -1256,6 +1273,9 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
 
     // Update top widget rect if it exists
     if (_topWidget != null) {
+      if (_topWidgetGlobalKey.currentContext == null) {
+        return;
+      }
       final Rect topWidgetRect = _getRect(_topWidgetGlobalKey);
       final Rect topWidgetRectBegin = _getSheetRectBegin(
         _lastOrientation,
@@ -1356,8 +1376,8 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
               : _sheetScaleAnimatable.evaluate(animation);
           final Rect? topWidgetRect = _topWidget != null
               ? (reverse
-                  ? _topWidgetRectAnimatableReverse.evaluate(animation)
-                  : _topWidgetRectAnimatable.evaluate(animation))
+                    ? _topWidgetRectAnimatableReverse.evaluate(animation)
+                    : _topWidgetRectAnimatable.evaluate(animation))
               : null;
           return Stack(
             children: <Widget>[
@@ -1384,6 +1404,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
               ),
               if (_topWidget != null && topWidgetRect != null)
                 Positioned.fromRect(
+                  key: _topWidgetGlobalKey,
                   rect: topWidgetRect,
                   child: FadeTransition(
                     opacity: _sheetOpacity,
@@ -1400,7 +1421,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
               Positioned.fromRect(
                 key: _childGlobalKey,
                 rect: rect,
-                child: _builder!(context, animation),
+                child: _builder(context, animation),
               ),
             ],
           );
@@ -1420,7 +1441,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
           topWidget: _topWidget,
           actionsBackgroundColor: _actionsBackgroundColor,
           actionsBorderRadius: _actionsBorderRadius,
-          child: _builder!(context, animation),
+          child: _builder(context, animation),
         );
       },
     );
@@ -1516,8 +1537,9 @@ class _ContextMenuRouteStaticState extends State<_ContextMenuRouteStatic>
     // If flung, animate a bit before handling the potential dismiss.
     if (details.velocity.pixelsPerSecond.dy.abs() >= kMinFlingVelocity) {
       final bool flingIsAway = details.velocity.pixelsPerSecond.dy > 0;
-      final double finalPosition =
-          flingIsAway ? _moveAnimation.value.dy + 100.0 : 0.0;
+      final double finalPosition = flingIsAway
+          ? _moveAnimation.value.dy + 100.0
+          : 0.0;
 
       if (flingIsAway && _sheetController.status != AnimationStatus.forward) {
         _sheetController.forward();
@@ -1805,7 +1827,8 @@ class _ContextMenuSheetState extends State<_ContextMenuSheet> {
           CupertinoContextMenuPlus.kBackgroundColor,
       context,
     );
-    final BorderRadius borderRadius = widget.actionsBorderRadius ??
+    final BorderRadius borderRadius =
+        widget.actionsBorderRadius ??
         CupertinoContextMenuPlus.kDefaultActionsBorderRadius;
 
     return ConstrainedBox(
@@ -1939,9 +1962,10 @@ class _ContextMenuAlignedChildrenDelegate extends MultiChildLayoutDelegate {
     // In portrait orientation, the child is atop the menu, while in landscape
     // orientation, the child is beside the menu.
     final double availableHeightForMenu = switch (orientation) {
-      Orientation.portrait => availableHeightForChild -
-          topWidgetHeight -
-          (childSize.height + _ContextMenuRouteStaticState._kPadding),
+      Orientation.portrait =>
+        availableHeightForChild -
+            topWidgetHeight -
+            (childSize.height + _ContextMenuRouteStaticState._kPadding),
       Orientation.landscape => availableHeightForChild - topWidgetHeight,
     };
 
@@ -1962,7 +1986,8 @@ class _ContextMenuAlignedChildrenDelegate extends MultiChildLayoutDelegate {
     final double maxClampedTop;
     switch (orientation) {
       case Orientation.portrait:
-        final double totalHeight = topWidgetHeight +
+        final double totalHeight =
+            topWidgetHeight +
             childSize.height +
             menuSize.height +
             _ContextMenuRouteStaticState._kPadding;
@@ -1981,7 +2006,8 @@ class _ContextMenuAlignedChildrenDelegate extends MultiChildLayoutDelegate {
         maxClampedLeft = screenBounds.right - totalWidth;
         maxClampedTop = screenBounds.bottom - totalHeight;
       case Orientation.landscape:
-        final double totalWidth = childSize.width +
+        final double totalWidth =
+            childSize.width +
             menuSize.width +
             _ContextMenuRouteStaticState._kPadding;
         final double totalHeightLandscape =
@@ -1997,7 +2023,8 @@ class _ContextMenuAlignedChildrenDelegate extends MultiChildLayoutDelegate {
     // Ensure min <= max to avoid assertion errors
     final double minLeft =
         screenBounds.left + _ContextMenuRouteStaticState._kPadding;
-    final double minTop = screenBounds.top +
+    final double minTop =
+        screenBounds.top +
         _ContextMenuRouteStaticState._kPadding +
         topWidgetHeight;
 
@@ -2085,8 +2112,8 @@ class _ContextMenuAlignedChildrenDelegate extends MultiChildLayoutDelegate {
             contextMenuLocation == _ContextMenuLocation.right;
         final double topWidgetLeft = menuOnRight
             ? clampedLeft +
-                menuSize.width +
-                _ContextMenuRouteStaticState._kPadding
+                  menuSize.width +
+                  _ContextMenuRouteStaticState._kPadding
             : clampedLeft;
 
         final Offset topWidgetOffset = Offset(
