@@ -147,6 +147,8 @@ class CupertinoContextMenuPlus extends StatefulWidget {
     required this.actions,
     required Widget this.child,
     this.enableHapticFeedback = false,
+    this.actionsBackgroundColor,
+    this.actionsBorderRadius,
     this.topWidget,
     this.location,
     this.showGrowAnimation = true,
@@ -166,6 +168,8 @@ class CupertinoContextMenuPlus extends StatefulWidget {
     required this.actions,
     required this.builder,
     this.enableHapticFeedback = false,
+    this.actionsBackgroundColor,
+    this.actionsBorderRadius,
     this.topWidget,
     this.location,
     this.showGrowAnimation = true,
@@ -261,6 +265,11 @@ class CupertinoContextMenuPlus extends StatefulWidget {
   /// The background color of a [CupertinoContextMenuAction] and a
   /// [CupertinoContextMenuPlus] sheet.
   static const Color kBackgroundColor = _kBackgroundColor;
+
+  /// Default border radius for the actions sheet container.
+  static const BorderRadius kDefaultActionsBorderRadius = BorderRadius.all(
+    Radius.circular(13.0),
+  );
 
   /// A function that returns a widget to be used alternatively from [child].
   ///
@@ -385,6 +394,19 @@ class CupertinoContextMenuPlus extends StatefulWidget {
   ///
   /// This parameter must not be empty.
   final List<Widget> actions;
+
+  /// Background color for the actions sheet container.
+  ///
+  /// Defaults to [kBackgroundColor].
+  ///
+  /// This can be a [CupertinoDynamicColor]; it will be resolved against the
+  /// current [BuildContext] when the menu is shown.
+  final Color? actionsBackgroundColor;
+
+  /// Border radius for the actions sheet container clip.
+  ///
+  /// Defaults to [kDefaultActionsBorderRadius].
+  final BorderRadius? actionsBorderRadius;
 
   /// If true, clicking on the [CupertinoContextMenuAction]s will
   /// produce haptic feedback.
@@ -585,6 +607,8 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
       previousChildRectWasScaled: widget.showGrowAnimation,
       scaleFactor: _scaleFactor,
       topWidget: widget.topWidget,
+      actionsBackgroundColor: widget.actionsBackgroundColor,
+      actionsBorderRadius: widget.actionsBorderRadius,
       builder: (BuildContext context, Animation<double> animation) {
         if (widget.child == null) {
           final double animationOpensAt = _animationOpensAt;
@@ -921,6 +945,8 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
     required double scaleFactor,
     super.settings,
     Widget? topWidget,
+    Color? actionsBackgroundColor,
+    BorderRadius? actionsBorderRadius,
   }) : assert(actions.isNotEmpty),
        _actions = actions,
        _builder = builder,
@@ -928,7 +954,9 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
        _previousChildRect = previousChildRect,
        _previousChildRectWasScaled = previousChildRectWasScaled,
        _scaleFactor = scaleFactor,
-       _topWidget = topWidget;
+       _topWidget = topWidget,
+       _actionsBackgroundColor = actionsBackgroundColor,
+       _actionsBorderRadius = actionsBorderRadius;
 
   // Barrier color for a Cupertino modal barrier.
   static const Color _kModalBarrierColor = Color(0x6604040F);
@@ -948,6 +976,8 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
   final GlobalKey _sheetGlobalKey = GlobalKey();
   final GlobalKey _topWidgetGlobalKey = GlobalKey();
   final Widget? _topWidget;
+  final Color? _actionsBackgroundColor;
+  final BorderRadius? _actionsBorderRadius;
 
   static final CurveTween _curve = CurveTween(curve: Curves.easeOutBack);
   static final CurveTween _curveReverse = CurveTween(curve: Curves.easeInBack);
@@ -1216,6 +1246,8 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
                       actions: _actions,
                       contextMenuLocation: _contextMenuLocation,
                       orientation: orientation,
+                      actionsBackgroundColor: _actionsBackgroundColor,
+                      actionsBorderRadius: _actionsBorderRadius,
                     ),
                   ),
                 ),
@@ -1256,6 +1288,8 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
           topWidgetGlobalKey: _topWidgetGlobalKey,
           childRect: _previousChildRect,
           topWidget: _topWidget,
+          actionsBackgroundColor: _actionsBackgroundColor,
+          actionsBorderRadius: _actionsBorderRadius,
           child: _builder!(context, animation),
         );
       },
@@ -1284,6 +1318,8 @@ class _ContextMenuRouteStatic extends StatefulWidget {
     this.topWidgetGlobalKey,
     required this.childRect,
     this.topWidget,
+    this.actionsBackgroundColor,
+    this.actionsBorderRadius,
   });
 
   final List<Widget>? actions;
@@ -1296,6 +1332,8 @@ class _ContextMenuRouteStatic extends StatefulWidget {
   final GlobalKey? topWidgetGlobalKey;
   final Rect childRect;
   final Widget? topWidget;
+  final Color? actionsBackgroundColor;
+  final BorderRadius? actionsBorderRadius;
 
   @override
   _ContextMenuRouteStaticState createState() => _ContextMenuRouteStaticState();
@@ -1458,6 +1496,8 @@ class _ContextMenuRouteStaticState extends State<_ContextMenuRouteStatic>
         actions: widget.actions!,
         contextMenuLocation: widget.contextMenuLocation,
         orientation: widget.orientation,
+        actionsBackgroundColor: widget.actionsBackgroundColor,
+        actionsBorderRadius: widget.actionsBorderRadius,
       ),
     );
 
@@ -1594,11 +1634,15 @@ class _ContextMenuSheet extends StatefulWidget {
     required this.actions,
     required this.contextMenuLocation,
     required this.orientation,
+    this.actionsBackgroundColor,
+    this.actionsBorderRadius,
   }) : assert(actions.isNotEmpty);
 
   final List<Widget> actions;
   final _ContextMenuLocation contextMenuLocation;
   final Orientation orientation;
+  final Color? actionsBackgroundColor;
+  final BorderRadius? actionsBorderRadius;
 
   @override
   State<_ContextMenuSheet> createState() => _ContextMenuSheetState();
@@ -1627,17 +1671,23 @@ class _ContextMenuSheetState extends State<_ContextMenuSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final Color backgroundColor = CupertinoDynamicColor.resolve(
+      widget.actionsBackgroundColor ??
+          CupertinoContextMenuPlus.kBackgroundColor,
+      context,
+    );
+    final BorderRadius borderRadius =
+        widget.actionsBorderRadius ??
+        CupertinoContextMenuPlus.kDefaultActionsBorderRadius;
+
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: _kMenuMaxWidth),
       child: IntrinsicWidth(
         child: IntrinsicHeight(
           child: ClipRSuperellipse(
-            borderRadius: const BorderRadius.all(Radius.circular(13.0)),
+            borderRadius: borderRadius,
             child: ColoredBox(
-              color: CupertinoDynamicColor.resolve(
-                CupertinoContextMenuPlus.kBackgroundColor,
-                context,
-              ),
+              color: backgroundColor,
               child: ScrollConfiguration(
                 behavior: ScrollConfiguration.of(
                   context,

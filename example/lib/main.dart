@@ -113,6 +113,8 @@ class ChatMessage extends StatelessWidget {
             ? CupertinoContextMenuLocation.right
             : CupertinoContextMenuLocation.left,
         showGrowAnimation: false,
+        actionsBackgroundColor: CupertinoColors.white,
+        actionsBorderRadius: BorderRadius.circular(16),
         actions: <Widget>[
           Padding(
             padding: const EdgeInsets.only(left: 24.0, bottom: 12.0, top: 16.0),
@@ -280,8 +282,7 @@ class ChatMessage extends StatelessWidget {
                   vertical: 8.0,
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-
+                  mainAxisAlignment: .spaceAround,
                   children: [
                     for (var image in images)
                       Image.asset(image, height: 32, width: 32),
