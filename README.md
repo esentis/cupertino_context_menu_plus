@@ -2,9 +2,7 @@
 
 ---
 
-![image](https://i.ibb.co/sv61PD2G/short.gif)
-
-![image](https://i.ibb.co/bVJQ1vR/homer.gif)
+![image](https://i.ibb.co/27QFZRXn/example.gif)
 
 ---
 
