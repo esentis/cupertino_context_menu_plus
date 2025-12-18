@@ -9,6 +9,7 @@ A forked and enhanced version of Flutter's `CupertinoContextMenu` with:
 - `location`: an optional override for consistent left/center/right alignment (useful for chat bubbles that may cross the screen midpoint).
 - `showGrowAnimation`: optionally disable the small pre-open “grow” animation (decoy overlay) when pressing.
 - `previewLongPressTimeout`: optionally change how long the user must press/hold before the menu opens.
+- `actionsBackgroundColor` / `actionsBorderRadius`: customize the actions sheet container styling.
 - Improved press (decoy) shadow: when possible, the animated shadow respects the child’s `borderRadius` instead of drawing as a plain rectangle.
 
 ## Usage
@@ -18,6 +19,8 @@ CupertinoContextMenuPlus(
   location: CupertinoContextMenuLocation.right, // or .left / .center
   showGrowAnimation: false,
   previewLongPressTimeout: Duration(milliseconds: 350),
+  actionsBackgroundColor: CupertinoColors.white,
+  actionsBorderRadius: BorderRadius.circular(16),
   topWidget: YourReactionsRow(),
   actions: <Widget>[
     CupertinoContextMenuAction(child: Text('Reply'), onPressed: () {}),
@@ -34,4 +37,3 @@ CupertinoContextMenuPlus(
 ```
 
 Note: the decoy shadow can only reuse the border radius if it can be inferred from the child (e.g. `Container`/`DecoratedBox` with `BoxDecoration.borderRadius`, or a `ClipRRect`).
-
