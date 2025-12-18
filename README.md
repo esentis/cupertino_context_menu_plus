@@ -2,11 +2,7 @@
 
 ---
 
-<center>
-<p>
-<img src="https://i.ibb.co/sv61PD2G/short.gif" alt="CupertinoContextMenuPlus" width="350">
-</p>
-</center>
+![image](https://i.ibb.co/sv61PD2G/short.gif)
 
 ---
 
