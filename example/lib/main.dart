@@ -113,6 +113,11 @@ class ChatMessage extends StatelessWidget {
             ? CupertinoContextMenuLocation.right
             : CupertinoContextMenuLocation.left,
         showGrowAnimation: false,
+        backdropBlurSigma: 10,
+        backdropBlurCurve: const Interval(0.0, 0.25, curve: Curves.easeOut),
+        backdropBlurReverseCurve: Curves.easeIn,
+        modalReverseTransitionDuration: const Duration(milliseconds: 180),
+        barrierColor: const Color(0x3304040F),
         actionsBackgroundColor: CupertinoColors.white,
         actionsBorderRadius: BorderRadius.circular(16),
         actions: <Widget>[
@@ -266,7 +271,7 @@ class ChatMessage extends StatelessWidget {
             borderRadius: BorderRadius.circular(36.0),
           ),
           child: Column(
-            mainAxisAlignment: .spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               SizedBox(height: 4),
               Text(
@@ -282,7 +287,7 @@ class ChatMessage extends StatelessWidget {
                   vertical: 8.0,
                 ),
                 child: Row(
-                  mainAxisAlignment: .spaceAround,
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     for (var image in images)
                       Image.asset(image, height: 32, width: 32),

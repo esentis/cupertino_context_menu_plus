@@ -33,6 +33,9 @@ const Duration _kModalPopupTransitionDuration = Duration(milliseconds: 335);
 // This value was eyeballed from the Xcode simulator running iOS 16.0.
 const Duration _kDefaultPreviewLongPressTimeout = Duration(milliseconds: 800);
 
+// Barrier color for a Cupertino modal barrier.
+const Color _kModalBarrierColor = Color(0x6604040F);
+
 int _totalAnimationDurationMs(Duration previewLongPressTimeout) {
   return previewLongPressTimeout.inMilliseconds +
       _kModalPopupTransitionDuration.inMilliseconds;
@@ -49,13 +52,13 @@ const Color _kBackgroundColor = CupertinoDynamicColor.withBrightness(
   darkColor: Color(0xFF212122),
 );
 
-typedef _DismissCallback =
-    void Function(BuildContext context, double scale, double opacity);
+typedef _DismissCallback = void Function(
+    BuildContext context, double scale, double opacity);
 
 /// A function that builds the child and handles the transition between the
 /// default child and the preview when the CupertinoContextMenuPlus is open.
-typedef CupertinoContextMenuBuilder =
-    Widget Function(BuildContext context, Animation<double> animation);
+typedef CupertinoContextMenuBuilder = Widget Function(
+    BuildContext context, Animation<double> animation);
 
 // Given a GlobalKey, return the Rect of the corresponding RenderBox's
 // paintBounds in global coordinates.
@@ -147,15 +150,24 @@ class CupertinoContextMenuPlus extends StatefulWidget {
     required this.actions,
     required Widget this.child,
     this.enableHapticFeedback = false,
+    this.backdropBlurSigma = kDefaultBackdropBlurSigma,
+    this.backdropBlurCurve = Curves.linear,
+    this.backdropBlurReverseCurve = Curves.linear,
+    this.barrierColor = kModalBarrierColor,
+    this.modalTransitionDuration = _kModalPopupTransitionDuration,
+    this.modalReverseTransitionDuration = _kModalPopupTransitionDuration,
     this.actionsBackgroundColor,
     this.actionsBorderRadius,
     this.topWidget,
     this.location,
     this.showGrowAnimation = true,
     this.previewLongPressTimeout = kDefaultPreviewLongPressTimeout,
-  }) : assert(actions.isNotEmpty),
-       assert(previewLongPressTimeout > Duration.zero),
-       builder = ((BuildContext context, Animation<double> animation) => child);
+  })  : assert(actions.isNotEmpty),
+        assert(modalTransitionDuration > Duration.zero),
+        assert(modalReverseTransitionDuration > Duration.zero),
+        assert(previewLongPressTimeout > Duration.zero),
+        builder =
+            ((BuildContext context, Animation<double> animation) => child);
 
   /// Creates a context menu with a custom [builder] controlling the widget.
   ///
@@ -168,15 +180,23 @@ class CupertinoContextMenuPlus extends StatefulWidget {
     required this.actions,
     required this.builder,
     this.enableHapticFeedback = false,
+    this.backdropBlurSigma = kDefaultBackdropBlurSigma,
+    this.backdropBlurCurve = Curves.linear,
+    this.backdropBlurReverseCurve = Curves.linear,
+    this.barrierColor = kModalBarrierColor,
+    this.modalTransitionDuration = _kModalPopupTransitionDuration,
+    this.modalReverseTransitionDuration = _kModalPopupTransitionDuration,
     this.actionsBackgroundColor,
     this.actionsBorderRadius,
     this.topWidget,
     this.location,
     this.showGrowAnimation = true,
     this.previewLongPressTimeout = kDefaultPreviewLongPressTimeout,
-  }) : assert(actions.isNotEmpty),
-       assert(previewLongPressTimeout > Duration.zero),
-       child = null;
+  })  : assert(actions.isNotEmpty),
+        assert(modalTransitionDuration > Duration.zero),
+        assert(modalReverseTransitionDuration > Duration.zero),
+        assert(previewLongPressTimeout > Duration.zero),
+        child = null;
 
   /// Exposes the default border radius for matching iOS 16.0 behavior. This
   /// value was eyeballed from the iOS simulator running iOS 16.0.
@@ -265,6 +285,16 @@ class CupertinoContextMenuPlus extends StatefulWidget {
   /// The background color of a [CupertinoContextMenuAction] and a
   /// [CupertinoContextMenuPlus] sheet.
   static const Color kBackgroundColor = _kBackgroundColor;
+
+  /// Default blur sigma for the background behind the context menu route.
+  ///
+  /// Set [CupertinoContextMenuPlus.backdropBlurSigma] to `0.0` to disable blur.
+  static const double kDefaultBackdropBlurSigma = 5.0;
+
+  /// Default barrier color behind the context menu route.
+  ///
+  /// This controls the background dimming opacity.
+  static const Color kModalBarrierColor = _kModalBarrierColor;
 
   /// Default border radius for the actions sheet container.
   static const BorderRadius kDefaultActionsBorderRadius = BorderRadius.all(
@@ -395,6 +425,37 @@ class CupertinoContextMenuPlus extends StatefulWidget {
   /// This parameter must not be empty.
   final List<Widget> actions;
 
+  /// Blur strength applied to the background behind the menu route.
+  ///
+  /// Set to `0.0` to disable blur.
+  final double backdropBlurSigma;
+
+  /// Controls how quickly the blur ramps in/out during the route transition.
+  ///
+  /// Defaults to [Curves.linear]. For a faster blur, consider:
+  /// `Interval(0.0, 0.25, curve: Curves.easeOut)`.
+  final Curve backdropBlurCurve;
+
+  /// Controls how quickly the blur ramps out during dismissal.
+  ///
+  /// Defaults to [Curves.linear]. To make blur leave faster, consider:
+  /// `Curves.easeIn`.
+  final Curve backdropBlurReverseCurve;
+
+  /// The modal barrier color behind the menu route.
+  ///
+  /// This controls the dimming/opacity of the background while the menu is open.
+  final Color barrierColor;
+
+  /// The route transition duration for showing the context menu.
+  ///
+  /// This controls how quickly the menu animates into place (not the long-press
+  /// time).
+  final Duration modalTransitionDuration;
+
+  /// The route transition duration for dismissing the context menu.
+  final Duration modalReverseTransitionDuration;
+
   /// Background color for the actions sheet container.
   ///
   /// Defaults to [kBackgroundColor].
@@ -460,8 +521,8 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
   late final TapGestureRecognizer _tapGestureRecognizer;
 
   double get _animationOpensAt => CupertinoContextMenuPlus.animationOpensAtFor(
-    widget.previewLongPressTimeout,
-  );
+        widget.previewLongPressTimeout,
+      );
 
   double get _midpoint => _animationOpensAt / 2;
 
@@ -554,12 +615,10 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
         2 * (childRect.center.dx - padding.left) / childRect.width;
     final double topMaxScale =
         2 * (childRect.center.dy - padding.top) / childRect.height;
-    final double rightMaxScale =
-        2 *
+    final double rightMaxScale = 2 *
         (size.width - padding.right - childRect.center.dx) /
         childRect.width;
-    final double bottomMaxScale =
-        2 *
+    final double bottomMaxScale = 2 *
         (size.height - padding.bottom - childRect.center.dy) /
         childRect.height;
     final double minWidth = math.min(leftMaxScale, rightMaxScale);
@@ -601,12 +660,17 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
     _route = _ContextMenuRoute<void>(
       actions: widget.actions,
       barrierLabel: CupertinoLocalizations.of(context).menuDismissLabel,
-      filter: ui.ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
       contextMenuLocation: _contextMenuLocation,
       previousChildRect: _decoyChildEndRect!,
       previousChildRectWasScaled: widget.showGrowAnimation,
       scaleFactor: _scaleFactor,
       topWidget: widget.topWidget,
+      backdropBlurSigma: widget.backdropBlurSigma,
+      backdropBlurCurve: widget.backdropBlurCurve,
+      backdropBlurReverseCurve: widget.backdropBlurReverseCurve,
+      barrierColor: widget.barrierColor,
+      transitionDuration: widget.modalTransitionDuration,
+      reverseTransitionDuration: widget.modalReverseTransitionDuration,
       actionsBackgroundColor: widget.actionsBackgroundColor,
       actionsBorderRadius: widget.actionsBorderRadius,
       builder: (BuildContext context, Animation<double> animation) {
@@ -843,8 +907,7 @@ class _DecoyChildState extends State<_DecoyChild>
     final int totalMs = _totalAnimationDurationMs(
       widget.previewLongPressTimeout,
     );
-    final double endPause =
-        ((totalOpenAnimationLength * totalMs) / previewMs) -
+    final double endPause = ((totalOpenAnimationLength * totalMs) / previewMs) -
         totalOpenAnimationLength;
 
     // The timing on the animation was eyeballed from the Xcode iOS simulator
@@ -885,9 +948,8 @@ class _DecoyChildState extends State<_DecoyChild>
       curve: Interval(0.0, widget.animationOpensAt),
     );
 
-    final BorderRadiusGeometry? borderRadius = widget.child != null
-        ? _tryExtractBorderRadius(widget.child!)
-        : null;
+    final BorderRadiusGeometry? borderRadius =
+        widget.child != null ? _tryExtractBorderRadius(widget.child!) : null;
 
     _boxDecoration = DecorationTween(
       begin: BoxDecoration(
@@ -939,27 +1001,38 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
     required _ContextMenuLocation contextMenuLocation,
     this.barrierLabel,
     CupertinoContextMenuBuilder? builder,
-    super.filter,
     required Rect previousChildRect,
     required bool previousChildRectWasScaled,
     required double scaleFactor,
     super.settings,
     Widget? topWidget,
+    required double backdropBlurSigma,
+    required Curve backdropBlurCurve,
+    required Curve backdropBlurReverseCurve,
+    required Color barrierColor,
+    required Duration transitionDuration,
+    required Duration reverseTransitionDuration,
     Color? actionsBackgroundColor,
     BorderRadius? actionsBorderRadius,
-  }) : assert(actions.isNotEmpty),
-       _actions = actions,
-       _builder = builder,
-       _contextMenuLocation = contextMenuLocation,
-       _previousChildRect = previousChildRect,
-       _previousChildRectWasScaled = previousChildRectWasScaled,
-       _scaleFactor = scaleFactor,
-       _topWidget = topWidget,
-       _actionsBackgroundColor = actionsBackgroundColor,
-       _actionsBorderRadius = actionsBorderRadius;
-
-  // Barrier color for a Cupertino modal barrier.
-  static const Color _kModalBarrierColor = Color(0x6604040F);
+  })  : assert(actions.isNotEmpty),
+        assert(backdropBlurSigma >= 0.0),
+        assert(transitionDuration > Duration.zero),
+        assert(reverseTransitionDuration > Duration.zero),
+        _actions = actions,
+        _builder = builder,
+        _contextMenuLocation = contextMenuLocation,
+        _previousChildRect = previousChildRect,
+        _previousChildRectWasScaled = previousChildRectWasScaled,
+        _scaleFactor = scaleFactor,
+        _topWidget = topWidget,
+        _backdropBlurSigma = backdropBlurSigma,
+        _backdropBlurCurve = backdropBlurCurve,
+        _backdropBlurReverseCurve = backdropBlurReverseCurve,
+        _barrierColor = barrierColor,
+        _transitionDuration = transitionDuration,
+        _reverseTransitionDuration = reverseTransitionDuration,
+        _actionsBackgroundColor = actionsBackgroundColor,
+        _actionsBorderRadius = actionsBorderRadius;
 
   final List<Widget> _actions;
   final CupertinoContextMenuBuilder? _builder;
@@ -976,6 +1049,12 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
   final GlobalKey _sheetGlobalKey = GlobalKey();
   final GlobalKey _topWidgetGlobalKey = GlobalKey();
   final Widget? _topWidget;
+  final double _backdropBlurSigma;
+  final Curve _backdropBlurCurve;
+  final Curve _backdropBlurReverseCurve;
+  final Color _barrierColor;
+  final Duration _transitionDuration;
+  final Duration _reverseTransitionDuration;
   final Color? _actionsBackgroundColor;
   final BorderRadius? _actionsBorderRadius;
 
@@ -984,8 +1063,8 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
   static final RectTween _rectTween = RectTween();
   static final Animatable<Rect?> _rectAnimatable = _rectTween.chain(_curve);
   static final RectTween _rectTweenReverse = RectTween();
-  static final Animatable<Rect?> _rectAnimatableReverse = _rectTweenReverse
-      .chain(_curveReverse);
+  static final Animatable<Rect?> _rectAnimatableReverse =
+      _rectTweenReverse.chain(_curveReverse);
   static final RectTween _sheetRectTween = RectTween();
   final Animatable<Rect?> _sheetRectAnimatable = _sheetRectTween.chain(_curve);
   final Animatable<Rect?> _sheetRectAnimatableReverse = _sheetRectTween.chain(
@@ -995,11 +1074,11 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
   final Animatable<Rect?> _topWidgetRectAnimatable = _topWidgetRectTween.chain(
     _curve,
   );
-  final Animatable<Rect?> _topWidgetRectAnimatableReverse = _topWidgetRectTween
-      .chain(_curveReverse);
+  final Animatable<Rect?> _topWidgetRectAnimatableReverse =
+      _topWidgetRectTween.chain(_curveReverse);
   static final Tween<double> _sheetScaleTween = Tween<double>();
-  static final Animatable<double> _sheetScaleAnimatable = _sheetScaleTween
-      .chain(_curve);
+  static final Animatable<double> _sheetScaleAnimatable =
+      _sheetScaleTween.chain(_curve);
   static final Animatable<double> _sheetScaleAnimatableReverse =
       _sheetScaleTween.chain(_curveReverse);
   final Tween<double> _opacityTween = Tween<double>(begin: 0.0, end: 1.0);
@@ -1009,7 +1088,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
   final String? barrierLabel;
 
   @override
-  Color get barrierColor => _kModalBarrierColor;
+  Color get barrierColor => _barrierColor;
 
   @override
   bool get barrierDismissible => true;
@@ -1018,7 +1097,58 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
   bool get semanticsDismissible => false;
 
   @override
-  Duration get transitionDuration => _kModalPopupTransitionDuration;
+  Widget buildModalBarrier() {
+    final Animation<double>? routeAnimation = animation;
+    if (routeAnimation == null) {
+      return const SizedBox.shrink();
+    }
+
+    return AnimatedBuilder(
+      animation: routeAnimation,
+      builder: (BuildContext context, Widget? child) {
+        final double t = routeAnimation.value;
+        final bool reversing = routeAnimation.status == AnimationStatus.reverse;
+        final double blurT = clampDouble(
+          (reversing ? _backdropBlurReverseCurve : _backdropBlurCurve)
+              .transform(
+            t,
+          ),
+          0.0,
+          1.0,
+        );
+        final Color resolvedBarrierColor = CupertinoDynamicColor.resolve(
+          _barrierColor,
+          context,
+        );
+        final Color color = resolvedBarrierColor.withValues(
+          alpha: resolvedBarrierColor.a * t,
+        );
+
+        Widget barrier = ModalBarrier(
+          dismissible: barrierDismissible,
+          color: color,
+          barrierSemanticsDismissible: semanticsDismissible,
+          semanticsLabel: barrierLabel,
+        );
+
+        final double sigma = _backdropBlurSigma * blurT;
+        if (sigma > 0.0) {
+          barrier = BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+            child: barrier,
+          );
+        }
+
+        return barrier;
+      },
+    );
+  }
+
+  @override
+  Duration get transitionDuration => _transitionDuration;
+
+  @override
+  Duration get reverseTransitionDuration => _reverseTransitionDuration;
 
   CurvedAnimation? _curvedAnimation;
 
@@ -1226,8 +1356,8 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
               : _sheetScaleAnimatable.evaluate(animation);
           final Rect? topWidgetRect = _topWidget != null
               ? (reverse
-                    ? _topWidgetRectAnimatableReverse.evaluate(animation)
-                    : _topWidgetRectAnimatable.evaluate(animation))
+                  ? _topWidgetRectAnimatableReverse.evaluate(animation)
+                  : _topWidgetRectAnimatable.evaluate(animation))
               : null;
           return Stack(
             children: <Widget>[
@@ -1386,9 +1516,8 @@ class _ContextMenuRouteStaticState extends State<_ContextMenuRouteStatic>
     // If flung, animate a bit before handling the potential dismiss.
     if (details.velocity.pixelsPerSecond.dy.abs() >= kMinFlingVelocity) {
       final bool flingIsAway = details.velocity.pixelsPerSecond.dy > 0;
-      final double finalPosition = flingIsAway
-          ? _moveAnimation.value.dy + 100.0
-          : 0.0;
+      final double finalPosition =
+          flingIsAway ? _moveAnimation.value.dy + 100.0 : 0.0;
 
       if (flingIsAway && _sheetController.status != AnimationStatus.forward) {
         _sheetController.forward();
@@ -1676,8 +1805,7 @@ class _ContextMenuSheetState extends State<_ContextMenuSheet> {
           CupertinoContextMenuPlus.kBackgroundColor,
       context,
     );
-    final BorderRadius borderRadius =
-        widget.actionsBorderRadius ??
+    final BorderRadius borderRadius = widget.actionsBorderRadius ??
         CupertinoContextMenuPlus.kDefaultActionsBorderRadius;
 
     return ConstrainedBox(
@@ -1811,10 +1939,9 @@ class _ContextMenuAlignedChildrenDelegate extends MultiChildLayoutDelegate {
     // In portrait orientation, the child is atop the menu, while in landscape
     // orientation, the child is beside the menu.
     final double availableHeightForMenu = switch (orientation) {
-      Orientation.portrait =>
-        availableHeightForChild -
-            topWidgetHeight -
-            (childSize.height + _ContextMenuRouteStaticState._kPadding),
+      Orientation.portrait => availableHeightForChild -
+          topWidgetHeight -
+          (childSize.height + _ContextMenuRouteStaticState._kPadding),
       Orientation.landscape => availableHeightForChild - topWidgetHeight,
     };
 
@@ -1835,8 +1962,7 @@ class _ContextMenuAlignedChildrenDelegate extends MultiChildLayoutDelegate {
     final double maxClampedTop;
     switch (orientation) {
       case Orientation.portrait:
-        final double totalHeight =
-            topWidgetHeight +
+        final double totalHeight = topWidgetHeight +
             childSize.height +
             menuSize.height +
             _ContextMenuRouteStaticState._kPadding;
@@ -1855,8 +1981,7 @@ class _ContextMenuAlignedChildrenDelegate extends MultiChildLayoutDelegate {
         maxClampedLeft = screenBounds.right - totalWidth;
         maxClampedTop = screenBounds.bottom - totalHeight;
       case Orientation.landscape:
-        final double totalWidth =
-            childSize.width +
+        final double totalWidth = childSize.width +
             menuSize.width +
             _ContextMenuRouteStaticState._kPadding;
         final double totalHeightLandscape =
@@ -1872,8 +1997,7 @@ class _ContextMenuAlignedChildrenDelegate extends MultiChildLayoutDelegate {
     // Ensure min <= max to avoid assertion errors
     final double minLeft =
         screenBounds.left + _ContextMenuRouteStaticState._kPadding;
-    final double minTop =
-        screenBounds.top +
+    final double minTop = screenBounds.top +
         _ContextMenuRouteStaticState._kPadding +
         topWidgetHeight;
 
@@ -1961,8 +2085,8 @@ class _ContextMenuAlignedChildrenDelegate extends MultiChildLayoutDelegate {
             contextMenuLocation == _ContextMenuLocation.right;
         final double topWidgetLeft = menuOnRight
             ? clampedLeft +
-                  menuSize.width +
-                  _ContextMenuRouteStaticState._kPadding
+                menuSize.width +
+                _ContextMenuRouteStaticState._kPadding
             : clampedLeft;
 
         final Offset topWidgetOffset = Offset(
