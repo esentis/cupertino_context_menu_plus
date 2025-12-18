@@ -10,6 +10,8 @@ A forked and enhanced version of Flutter's `CupertinoContextMenu` with:
 - `showGrowAnimation`: optionally disable the small pre-open “grow” animation (decoy overlay) when pressing.
 - `previewLongPressTimeout`: optionally change how long the user must press/hold before the menu opens.
 - `actionsBackgroundColor` / `actionsBorderRadius`: customize the actions sheet container styling.
+- `backdropBlurSigma` / `backdropBlurCurve` / `backdropBlurReverseCurve` / `barrierColor`: customize the modal backdrop blur ramp + dimming.
+- `modalReverseTransitionDuration`: customize dismissal speed.
 - Improved press (decoy) shadow: when possible, the animated shadow respects the child’s `borderRadius` instead of drawing as a plain rectangle.
 
 ## Usage
@@ -18,7 +20,12 @@ A forked and enhanced version of Flutter's `CupertinoContextMenu` with:
 CupertinoContextMenuPlus(
   location: CupertinoContextMenuLocation.right, // or .left / .center
   showGrowAnimation: false,
-  previewLongPressTimeout: Duration(milliseconds: 350),
+  previewLongPressTimeout: const Duration(milliseconds: 350),
+  backdropBlurSigma: 8,
+  backdropBlurCurve: Interval(0.0, 0.25, curve: Curves.easeOut),
+  backdropBlurReverseCurve: Curves.easeIn,
+  modalReverseTransitionDuration: Duration(milliseconds: 180),
+  barrierColor: const Color(0x3304040F),
   actionsBackgroundColor: CupertinoColors.white,
   actionsBorderRadius: BorderRadius.circular(16),
   topWidget: YourReactionsRow(),
