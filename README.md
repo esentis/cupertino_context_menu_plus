@@ -2,7 +2,7 @@
 
 ---
 
-![image](https://i.ibb.co/27QFZRXn/example.gif)
+![image](https://i.ibb.co/cSRbz5BT/short-3.gif)
 
 ---
 
