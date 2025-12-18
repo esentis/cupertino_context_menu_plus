@@ -1,6 +1,6 @@
 # CupertinoContextMenuPlus
 
-<img src="https://i.imgur.com/d9hZILB.gif" width="300">
+<img src="https://i.imgur.com/d9hZILB.gif" width="450">
 
 A forked and enhanced version of Flutter's `CupertinoContextMenu` with:
 
