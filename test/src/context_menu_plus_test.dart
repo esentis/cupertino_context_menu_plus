@@ -497,7 +497,8 @@ void main() {
       },
     );
 
-    testWidgets('CupertinoContextMenu with a builder can change the animation', (
+    testWidgets('CupertinoContextMenu with a builder can change the animation',
+        (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(

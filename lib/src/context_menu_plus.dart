@@ -851,9 +851,27 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
     required Rect previousChildRect,
     required bool previousChildRectWasScaled,
   }) {
-    setState(() {
-      _childHidden = true;
-    });
+    if (widget.showGrowAnimation) {
+      setState(() {
+        _childHidden = true;
+      });
+    } else {
+      // Avoid a flash during the route transition:
+      // _ContextMenuRoute renders an initial "measurement frame" before it can
+      // show the animated preview. If we hide the original child too early,
+      // there may be a brief frame where neither the original child nor the
+      // route preview is visible.
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _route == null || _childHidden) {
+            return;
+          }
+          setState(() {
+            _childHidden = true;
+          });
+        }, debugLabel: 'hideChildAfterContextMenuRoutePush2');
+      }, debugLabel: 'hideChildAfterContextMenuRoutePush1');
+    }
 
     _route = _ContextMenuRoute<void>(
       actions: widget.actions,
@@ -1322,17 +1340,18 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
       return const SizedBox.shrink();
     }
 
+    final CurvedAnimation blurAnimation = CurvedAnimation(
+      parent: routeAnimation,
+      curve: _backdropBlurCurve,
+      reverseCurve: _backdropBlurReverseCurve,
+    );
+    final bool enableBlur = _backdropBlurSigma > 0.0;
+
     return AnimatedBuilder(
       animation: routeAnimation,
       builder: (BuildContext context, Widget? child) {
         final double t = routeAnimation.value;
-        final bool reversing = routeAnimation.status == AnimationStatus.reverse;
-        final double blurT = clampDouble(
-          (reversing ? _backdropBlurReverseCurve : _backdropBlurCurve)
-              .transform(t),
-          0.0,
-          1.0,
-        );
+        final double blurT = clampDouble(blurAnimation.value, 0.0, 1.0);
         final Color resolvedBarrierColor = CupertinoDynamicColor.resolve(
           _barrierColor,
           context,
@@ -1348,14 +1367,17 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
           semanticsLabel: barrierLabel,
         );
 
-        final double sigma = _backdropBlurSigma * blurT;
-        if (sigma > 0.0) {
-          barrier = BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-            child: barrier,
-          );
+        if (!enableBlur || _internalOffstage) {
+          return barrier;
         }
 
+        final double sigma = _backdropBlurSigma * blurT;
+        barrier = ClipRect(
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+            child: barrier,
+          ),
+        );
         return barrier;
       },
     );
@@ -1488,10 +1510,39 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
     }
   }
 
+  void _scheduleMeasurements() {
+    SchedulerBinding.instance.addPostFrameCallback((Duration _) {
+      if (!isActive) {
+        return;
+      }
+
+      final bool hasChild = _childGlobalKey.currentContext != null;
+      final bool hasSheet = _sheetGlobalKey.currentContext != null;
+      final bool hasTopWidget =
+          _topWidget == null || _topWidgetGlobalKey.currentContext != null;
+
+      if (!hasChild || !hasSheet || !hasTopWidget) {
+        _scheduleMeasurements();
+        return;
+      }
+
+      _updateTweenRects();
+      _internalOffstage = false;
+      _setOffstageInternally();
+    }, debugLabel: 'renderContextMenuRouteOffstage');
+  }
+
   void _setOffstageInternally() {
-    super.offstage = _externalOffstage || _internalOffstage;
-    // It's necessary to call changedInternalState to get the backdrop to
-    // update.
+    // Keep the route on-stage so the modal barrier animates smoothly.
+    //
+    // This route renders one frame with its content hidden (via
+    // [_internalOffstage]) to take measurements. Toggling `super.offstage` for
+    // that frame can cause the barrier to appear/disappear abruptly, which can
+    // show up as a brief flash.
+    super.offstage = _externalOffstage;
+
+    // It's necessary to call changedInternalState to get the backdrop/content
+    // to update.
     changedInternalState();
   }
 
@@ -1512,13 +1563,9 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
     _internalOffstage = true;
     _setOffstageInternally();
 
-    // Render one frame offstage in the final position so that we can take
-    // measurements of its layout and then animate to them.
-    SchedulerBinding.instance.addPostFrameCallback((Duration _) {
-      _updateTweenRects();
-      _internalOffstage = false;
-      _setOffstageInternally();
-    }, debugLabel: 'renderContextMenuRouteOffstage');
+    // Render one frame with content hidden in the final position so that we
+    // can take measurements of its layout and then animate to them.
+    _scheduleMeasurements();
     return super.didPush();
   }
 
@@ -1561,8 +1608,37 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
       builder: (BuildContext context, Orientation orientation) {
         _lastOrientation = orientation;
 
+        // During the initial "measurement frame" (see [didPush]), the route is
+        // kept on-stage so the modal barrier can animate smoothly, but the
+        // animated rect tweens haven't been initialized yet. Build the final
+        // layout offstage so the keys can be measured.
+        if (_internalOffstage) {
+          return IgnorePointer(
+            ignoring: true,
+            child: Opacity(
+              opacity: 0.0,
+              child: _ContextMenuRouteStatic(
+                actions: _actions,
+                bottomWidgetBuilder: _bottomWidgetBuilder,
+                childGlobalKey: _childGlobalKey,
+                contextMenuLocation: _contextMenuLocation,
+                onDismiss: _onDismiss,
+                orientation: orientation,
+                sheetGlobalKey: _sheetGlobalKey,
+                topWidgetGlobalKey: _topWidgetGlobalKey,
+                childRect: _previousChildRect,
+                topWidget: _topWidget,
+                actionsBackgroundColor: _actionsBackgroundColor,
+                actionsBorderRadius: _actionsBorderRadius,
+                child: _builder(context, animation),
+              ),
+            ),
+          );
+        }
+
         // While the animation is running, render everything in a Stack so that
         // they're movable.
+        Widget result;
         if (!animation.isCompleted) {
           final bool reverse = animation.status == AnimationStatus.reverse;
           final Rect rect = reverse
@@ -1579,7 +1655,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
                     ? _topWidgetRectAnimatableReverse.evaluate(animation)
                     : _topWidgetRectAnimatable.evaluate(animation))
               : null;
-          return Stack(
+          result = Stack(
             children: <Widget>[
               Positioned.fromRect(
                 rect: sheetRect,
@@ -1626,25 +1702,27 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
               ),
             ],
           );
+        } else {
+          // When the animation is done, just render everything in a static layout
+          // in the final position.
+          result = _ContextMenuRouteStatic(
+            actions: _actions,
+            bottomWidgetBuilder: _bottomWidgetBuilder,
+            childGlobalKey: _childGlobalKey,
+            contextMenuLocation: _contextMenuLocation,
+            onDismiss: _onDismiss,
+            orientation: orientation,
+            sheetGlobalKey: _sheetGlobalKey,
+            topWidgetGlobalKey: _topWidgetGlobalKey,
+            childRect: _previousChildRect,
+            topWidget: _topWidget,
+            actionsBackgroundColor: _actionsBackgroundColor,
+            actionsBorderRadius: _actionsBorderRadius,
+            child: _builder(context, animation),
+          );
         }
 
-        // When the animation is done, just render everything in a static layout
-        // in the final position.
-        return _ContextMenuRouteStatic(
-          actions: _actions,
-          bottomWidgetBuilder: _bottomWidgetBuilder,
-          childGlobalKey: _childGlobalKey,
-          contextMenuLocation: _contextMenuLocation,
-          onDismiss: _onDismiss,
-          orientation: orientation,
-          sheetGlobalKey: _sheetGlobalKey,
-          topWidgetGlobalKey: _topWidgetGlobalKey,
-          childRect: _previousChildRect,
-          topWidget: _topWidget,
-          actionsBackgroundColor: _actionsBackgroundColor,
-          actionsBorderRadius: _actionsBorderRadius,
-          child: _builder(context, animation),
-        );
+        return result;
       },
     );
   }
