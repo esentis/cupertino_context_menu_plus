@@ -1,18 +1,10 @@
-import 'package:cupertino_context_menu_plus/cupertino_context_menu_plus.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
+
+import 'widgets/chat_message.dart';
+import 'widgets/composer_bar.dart';
+import 'widgets/draggable_list_view.dart';
 
 void main() => runApp(const ContextMenuApp());
-
-const List<String> _reactionImages = <String>[
-  'assets/boom.gif',
-  'assets/cry.gif',
-  'assets/heart.gif',
-  'assets/like.gif',
-  'assets/love.gif',
-  'assets/rofl.gif',
-  'assets/more.png',
-];
 
 class ContextMenuApp extends StatefulWidget {
   const ContextMenuApp({super.key});
@@ -93,7 +85,7 @@ class _ChatExampleState extends State<ChatExample> {
           text: switch (i % 6) {
             0 => 'Quick check-in: are we still on for lunch?',
             1 => 'Yep! 12:30 works.',
-            2 => 'Perfect. I’ll grab a table.',
+            2 => "Perfect. I'll grab a table.",
             3 => 'Want me to bring anything?',
             4 => 'Just your appetite.',
             _ => 'Deal. See you soon.',
@@ -182,491 +174,64 @@ class _ChatExampleState extends State<ChatExample> {
         child: Column(
           children: <Widget>[
             Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16.0),
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                itemCount: _messages.length,
-                itemBuilder: (BuildContext context, int index) {
-                  final _ChatMessageData msg = _messages[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: ChatMessage(
-                      text: msg.text,
-                      time: _formatTime(msg.timestamp),
-                      isSent: msg.isSent,
-                      isDark: _isDark,
-                      bubbleColor: msg.isSent
-                          ? CupertinoDynamicColor.resolve(
-                              CupertinoColors.activeBlue,
-                              context,
-                            )
-                          : (_isDark
-                                ? const Color(0xFF2C2C2E)
-                                : CupertinoColors.systemGrey5.resolveFrom(
-                                    context,
-                                  )),
-                      bubbleTextColor: msg.isSent
-                          ? CupertinoColors.white
-                          : theme.textTheme.textStyle.color ??
-                                CupertinoColors.label,
-                    ),
+              child: DraggableListView(
+                builder: (
+                  BuildContext context,
+                  double dragOffset,
+                  Animation<double> slideAnimation,
+                ) {
+                  return ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16.0),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    itemCount: _messages.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      final _ChatMessageData msg = _messages[index];
+                      // Find the last received message
+                      final int lastReceivedIndex = _messages.lastIndexWhere(
+                        (_ChatMessageData m) => !m.isSent,
+                      );
+                      final bool isLastReceived =
+                          !msg.isSent && index == lastReceivedIndex;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: ChatMessage(
+                          text: msg.text,
+                          time: _formatTime(msg.timestamp),
+                          isSent: msg.isSent,
+                          isDark: _isDark,
+                          bubbleColor: msg.isSent
+                              ? CupertinoDynamicColor.resolve(
+                                  CupertinoColors.activeBlue,
+                                  context,
+                                )
+                              : (_isDark
+                                  ? const Color(0xFF2C2C2E)
+                                  : CupertinoColors.systemGrey5
+                                      .resolveFrom(context)),
+                          bubbleTextColor: msg.isSent
+                              ? CupertinoColors.white
+                              : theme.textTheme.textStyle.color ??
+                                  CupertinoColors.label,
+                          dragOffset: dragOffset,
+                          slideAnimation: slideAnimation,
+                          showEmojiChip: isLastReceived,
+                        ),
+                      );
+                    },
                   );
                 },
               ),
             ),
-            _ComposerBar(
+            ComposerBar(
               isDark: _isDark,
               controller: _composerController,
               focusNode: _composerFocusNode,
               onSend: _sendMessage,
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class ChatMessage extends StatefulWidget {
-  const ChatMessage({
-    super.key,
-    required this.text,
-    required this.time,
-    required this.isSent,
-    required this.isDark,
-    required this.bubbleColor,
-    required this.bubbleTextColor,
-  });
-
-  final String text;
-  final String time;
-  final bool isSent;
-  final bool isDark;
-  final Color bubbleColor;
-  final Color bubbleTextColor;
-
-  @override
-  State<ChatMessage> createState() => _ChatMessageState();
-}
-
-class _ChatMessageState extends State<ChatMessage> {
-  late final CupertinoContextMenuPlusController _menuController =
-      CupertinoContextMenuPlusController();
-
-  @override
-  void dispose() {
-    _menuController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final Color actionsBackgroundColor = widget.isDark
-        ? const Color(0xFF1C1C1E)
-        : const Color(0xFFF8F8F8);
-    final BorderRadius actionsBorderRadius = BorderRadius.circular(18);
-
-    final Widget bubble = Container(
-      constraints: const BoxConstraints(maxWidth: 280),
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        color: widget.bubbleColor,
-        borderRadius: BorderRadius.circular(20.0),
-      ),
-      child: Text(
-        widget.text,
-        style: TextStyle(fontSize: 16, color: widget.bubbleTextColor),
-      ),
-    );
-
-    final Widget emojiChip = CupertinoButton(
-      padding: EdgeInsets.zero,
-      minimumSize: Size.zero,
-      pressedOpacity: 0.7,
-      onPressed: _menuController.open,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: widget.isDark
-              ? const Color(0xFF2C2C2E)
-              : const Color(0xFFFFFFFF),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: widget.isDark
-                ? const Color(0xFF3A3A3C)
-                : const Color(0x14000000),
-          ),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: CupertinoColors.black.withValues(
-                alpha: widget.isDark ? 0.35 : 0.12,
-              ),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Text('😊', style: TextStyle(fontSize: 14)),
-        ),
-      ),
-    );
-
-    return Align(
-      alignment: widget.isSent ? Alignment.centerRight : Alignment.centerLeft,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: CupertinoContextMenuPlus(
-              previewLongPressTimeout: const Duration(milliseconds: 350),
-              controller: _menuController,
-              openGestureEnabled: true,
-              location: widget.isSent
-                  ? CupertinoContextMenuLocation.right
-                  : CupertinoContextMenuLocation.left,
-              showGrowAnimation: false,
-              enableHapticFeedback: true,
-              backdropBlurSigma: widget.isDark ? 12 : 10,
-              backdropBlurCurve: const Interval(
-                0.0,
-                0.25,
-                curve: Curves.easeOut,
-              ),
-              backdropBlurReverseCurve: Curves.easeIn,
-              modalReverseTransitionDuration: Duration(
-                milliseconds: widget.isDark ? 160 : 180,
-              ),
-              barrierColor: widget.isDark
-                  ? const Color(0x66000000)
-                  : const Color(0x3304040F),
-              actionsBackgroundColor: actionsBackgroundColor,
-              actionsBorderRadius: actionsBorderRadius,
-              actions: _buildSexyActions(
-                context,
-                isDark: widget.isDark,
-                text: widget.text,
-                time: widget.time,
-                isSent: widget.isSent,
-              ),
-              topWidget: _ReactionsTopWidget(isDark: widget.isDark),
-              child: bubble,
-            ),
-          ),
-          Positioned(
-            left: 12,
-            bottom: 0,
-            child: AnimatedBuilder(
-              animation: _menuController,
-              child: emojiChip,
-              builder: (BuildContext context, Widget? child) {
-                final bool visible = !_menuController.isOpen;
-                return IgnorePointer(
-                  ignoring: !visible,
-                  child: AnimatedOpacity(
-                    opacity: visible ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    child: child,
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static List<Widget> _buildSexyActions(
-    BuildContext context, {
-    required bool isDark,
-    required String text,
-    required String time,
-    required bool isSent,
-  }) {
-    final Color primaryText = isDark
-        ? CupertinoColors.white
-        : const Color(0xFF111111);
-    final Color secondaryText = isDark
-        ? CupertinoColors.systemGrey2
-        : CupertinoColors.systemGrey;
-
-    final Color tileBackground = isDark
-        ? const Color(0xFF2C2C2E)
-        : const Color(0xFFFFFFFF);
-    final Color divider = isDark
-        ? const Color(0xFF3A3A3C)
-        : const Color(0x14000000);
-
-    return <Widget>[
-      Padding(
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
-        child: Row(
-          children: <Widget>[
-            Text(
-              'Message',
-              style: TextStyle(fontSize: 12, color: secondaryText),
-            ),
-            const Spacer(),
-            Text(time, style: TextStyle(fontSize: 12, color: secondaryText)),
-          ],
-        ),
-      ),
-      _ActionGroup(
-        background: tileBackground,
-        divider: divider,
-        children: <Widget>[
-          _ActionTile(
-            icon: CupertinoIcons.reply,
-            label: 'Reply',
-            labelColor: primaryText,
-            iconColor: primaryText,
-            onPressed: () => Navigator.pop(context),
-          ),
-          _ActionTile(
-            icon: CupertinoIcons.doc_on_clipboard,
-            label: 'Copy',
-            labelColor: primaryText,
-            iconColor: primaryText,
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: text));
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-            },
-          ),
-          _ActionTile(
-            icon: CupertinoIcons.arrowshape_turn_up_right,
-            label: 'Forward',
-            labelColor: primaryText,
-            iconColor: primaryText,
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-      const SizedBox(height: 10),
-      _ActionGroup(
-        background: tileBackground,
-        divider: divider,
-        children: <Widget>[
-          _ActionTile(
-            icon: isSent ? CupertinoIcons.delete : CupertinoIcons.info,
-            label: isSent ? 'Delete' : 'Report',
-            labelColor: CupertinoColors.destructiveRed,
-            iconColor: CupertinoColors.destructiveRed,
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-      const SizedBox(height: 12),
-    ];
-  }
-}
-
-class _ReactionsTopWidget extends StatelessWidget {
-  const _ReactionsTopWidget({required this.isDark});
-
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color background = isDark
-        ? const Color(0xFF2C2C2E)
-        : const Color(0xFFF2F2F7);
-    final Color border = isDark
-        ? const Color(0xFF3A3A3C)
-        : const Color(0x00000000);
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 340),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: border),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Text(
-              'Tap + for more reactions',
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark
-                    ? CupertinoColors.systemGrey2
-                    : CupertinoColors.systemGrey,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const _ReactionRow(),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ReactionRow extends StatelessWidget {
-  const _ReactionRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: <Widget>[
-        for (final String image in _reactionImages)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.asset(image, height: 28, width: 28, fit: BoxFit.cover),
-          ),
-      ],
-    );
-  }
-}
-
-class _ActionGroup extends StatelessWidget {
-  const _ActionGroup({
-    required this.background,
-    required this.divider,
-    required this.children,
-  });
-
-  final Color background;
-  final Color divider;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: DecoratedBox(
-          decoration: BoxDecoration(color: background),
-          child: Column(
-            children: <Widget>[
-              for (int i = 0; i < children.length; i += 1) ...<Widget>[
-                children[i],
-                if (i != children.length - 1)
-                  Container(height: 0.5, color: divider),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    required this.labelColor,
-    required this.iconColor,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-  final Color labelColor;
-  final Color iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoButton(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      minimumSize: Size.zero,
-      pressedOpacity: 0.55,
-      onPressed: onPressed,
-      child: Row(
-        children: <Widget>[
-          Icon(icon, size: 20, color: iconColor),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 15, color: labelColor),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ComposerBar extends StatelessWidget {
-  const _ComposerBar({
-    required this.isDark,
-    required this.controller,
-    required this.focusNode,
-    required this.onSend,
-  });
-
-  final bool isDark;
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final VoidCallback onSend;
-
-  @override
-  Widget build(BuildContext context) {
-    final EdgeInsets viewInsets = MediaQuery.viewInsetsOf(context);
-    final Color background = isDark
-        ? const Color(0xFF1C1C1E)
-        : const Color(0xFFF2F2F7);
-    final Color border = isDark
-        ? const Color(0xFF2C2C2E)
-        : const Color(0x00000000);
-
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: viewInsets.bottom),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: background,
-          border: Border(top: BorderSide(color: border)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: CupertinoTextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    placeholder: 'Message',
-                    onSubmitted: (_) => onSend(),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    clearButtonMode: OverlayVisibilityMode.editing,
-                    textInputAction: TextInputAction.send,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                CupertinoButton(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  onPressed: onSend,
-                  child: const Icon(
-                    CupertinoIcons.arrow_up_circle_fill,
-                    size: 28,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
