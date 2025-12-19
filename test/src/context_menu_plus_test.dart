@@ -342,6 +342,106 @@ void main() {
       expect(decoyChildAfterEnding, findsNothing);
     });
 
+    testWidgets('CupertinoContextMenuPlus shows bottomWidgetBuilder content', (
+      WidgetTester tester,
+    ) async {
+      final Widget child = getChild();
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: CupertinoPageScaffold(
+            child: Center(
+              child: CupertinoContextMenuPlus(
+                previewLongPressTimeout: const Duration(milliseconds: 1),
+                showGrowAnimation: false,
+                bottomWidgetBuilder: (BuildContext context) =>
+                    const Text('Custom actions'),
+                child: child,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final Rect childRect = tester.getRect(find.byWidget(child));
+      final TestGesture gesture = await tester.startGesture(childRect.center);
+      await tester.pump(const Duration(milliseconds: 2));
+      await tester.pumpAndSettle();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Custom actions'), findsOneWidget);
+      expect(findStatic(), findsOneWidget);
+    });
+
+    testWidgets(
+      'CupertinoContextMenuPlus bottomWidgetBuilder overrides actions',
+      (WidgetTester tester) async {
+        final Widget child = getChild();
+
+        await tester.pumpWidget(
+          CupertinoApp(
+            home: CupertinoPageScaffold(
+              child: Center(
+                child: CupertinoContextMenuPlus(
+                  previewLongPressTimeout: const Duration(milliseconds: 1),
+                  showGrowAnimation: false,
+                  actions: const <Widget>[Text('Legacy actions')],
+                  bottomWidgetBuilder: (BuildContext context) =>
+                      const Text('Bottom widget'),
+                  child: child,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final Rect childRect = tester.getRect(find.byWidget(child));
+        final TestGesture gesture = await tester.startGesture(childRect.center);
+        await tester.pump(const Duration(milliseconds: 2));
+        await tester.pumpAndSettle();
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(find.text('Bottom widget'), findsOneWidget);
+        expect(find.text('Legacy actions'), findsNothing);
+        expect(findStatic(), findsOneWidget);
+      },
+    );
+
+    testWidgets('CupertinoContextMenuPlusController can open and close', (
+      WidgetTester tester,
+    ) async {
+      final CupertinoContextMenuPlusController controller =
+          CupertinoContextMenuPlusController();
+      final Widget child = getChild();
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: CupertinoPageScaffold(
+            child: Center(
+              child: CupertinoContextMenuPlus(
+                controller: controller,
+                openGestureEnabled: false,
+                actions: const <Widget>[Text('Action')],
+                child: child,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      controller.open();
+      await tester.pumpAndSettle();
+      expect(controller.isOpen, isTrue);
+      expect(findStatic(), findsOneWidget);
+
+      controller.close();
+      await tester.pumpAndSettle();
+      expect(controller.isOpen, isFalse);
+      expect(findStatic(), findsNothing);
+    });
+
     testWidgets(
       'CupertinoContextMenu with a basic builder opens and closes the same as when providing a child',
       (WidgetTester tester) async {
