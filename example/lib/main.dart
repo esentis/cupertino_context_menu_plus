@@ -229,7 +229,7 @@ class _ChatExampleState extends State<ChatExample> {
   }
 }
 
-class ChatMessage extends StatelessWidget {
+class ChatMessage extends StatefulWidget {
   const ChatMessage({
     super.key,
     required this.text,
@@ -248,52 +248,135 @@ class ChatMessage extends StatelessWidget {
   final Color bubbleTextColor;
 
   @override
+  State<ChatMessage> createState() => _ChatMessageState();
+}
+
+class _ChatMessageState extends State<ChatMessage> {
+  late final CupertinoContextMenuPlusController _menuController =
+      CupertinoContextMenuPlusController();
+
+  @override
+  void dispose() {
+    _menuController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final Color actionsBackgroundColor = isDark
+    final Color actionsBackgroundColor = widget.isDark
         ? const Color(0xFF1C1C1E)
         : const Color(0xFFF8F8F8);
     final BorderRadius actionsBorderRadius = BorderRadius.circular(18);
 
+    final Widget bubble = Container(
+      constraints: const BoxConstraints(maxWidth: 280),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      decoration: BoxDecoration(
+        color: widget.bubbleColor,
+        borderRadius: BorderRadius.circular(20.0),
+      ),
+      child: Text(
+        widget.text,
+        style: TextStyle(fontSize: 16, color: widget.bubbleTextColor),
+      ),
+    );
+
+    final Widget emojiChip = CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      pressedOpacity: 0.7,
+      onPressed: _menuController.open,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: widget.isDark
+              ? const Color(0xFF2C2C2E)
+              : const Color(0xFFFFFFFF),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: widget.isDark
+                ? const Color(0xFF3A3A3C)
+                : const Color(0x14000000),
+          ),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: CupertinoColors.black.withValues(
+                alpha: widget.isDark ? 0.35 : 0.12,
+              ),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Text('😊', style: TextStyle(fontSize: 14)),
+        ),
+      ),
+    );
+
     return Align(
-      alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
-      child: CupertinoContextMenuPlus(
-        previewLongPressTimeout: const Duration(milliseconds: 350),
-        location: isSent
-            ? CupertinoContextMenuLocation.right
-            : CupertinoContextMenuLocation.left,
-        showGrowAnimation: false,
-        enableHapticFeedback: true,
-        backdropBlurSigma: isDark ? 12 : 10,
-        backdropBlurCurve: const Interval(0.0, 0.25, curve: Curves.easeOut),
-        backdropBlurReverseCurve: Curves.easeIn,
-        modalReverseTransitionDuration: Duration(
-          milliseconds: isDark ? 160 : 180,
-        ),
-        barrierColor: isDark
-            ? const Color(0x66000000)
-            : const Color(0x3304040F),
-        actionsBackgroundColor: actionsBackgroundColor,
-        actionsBorderRadius: actionsBorderRadius,
-        actions: _buildSexyActions(
-          context,
-          isDark: isDark,
-          text: text,
-          time: time,
-          isSent: isSent,
-        ),
-        topWidget: _ReactionsTopWidget(isDark: isDark),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 280),
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          decoration: BoxDecoration(
-            color: bubbleColor,
-            borderRadius: BorderRadius.circular(20.0),
+      alignment: widget.isSent ? Alignment.centerRight : Alignment.centerLeft,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: CupertinoContextMenuPlus(
+              previewLongPressTimeout: const Duration(milliseconds: 350),
+              controller: _menuController,
+              openGestureEnabled: true,
+              location: widget.isSent
+                  ? CupertinoContextMenuLocation.right
+                  : CupertinoContextMenuLocation.left,
+              showGrowAnimation: false,
+              enableHapticFeedback: true,
+              backdropBlurSigma: widget.isDark ? 12 : 10,
+              backdropBlurCurve: const Interval(
+                0.0,
+                0.25,
+                curve: Curves.easeOut,
+              ),
+              backdropBlurReverseCurve: Curves.easeIn,
+              modalReverseTransitionDuration: Duration(
+                milliseconds: widget.isDark ? 160 : 180,
+              ),
+              barrierColor: widget.isDark
+                  ? const Color(0x66000000)
+                  : const Color(0x3304040F),
+              actionsBackgroundColor: actionsBackgroundColor,
+              actionsBorderRadius: actionsBorderRadius,
+              actions: _buildSexyActions(
+                context,
+                isDark: widget.isDark,
+                text: widget.text,
+                time: widget.time,
+                isSent: widget.isSent,
+              ),
+              topWidget: _ReactionsTopWidget(isDark: widget.isDark),
+              child: bubble,
+            ),
           ),
-          child: Text(
-            text,
-            style: TextStyle(fontSize: 16, color: bubbleTextColor),
+          Positioned(
+            left: 12,
+            bottom: 0,
+            child: AnimatedBuilder(
+              animation: _menuController,
+              child: emojiChip,
+              builder: (BuildContext context, Widget? child) {
+                final bool visible = !_menuController.isOpen;
+                return IgnorePointer(
+                  ignoring: !visible,
+                  child: AnimatedOpacity(
+                    opacity: visible ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    child: child,
+                  ),
+                );
+              },
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
