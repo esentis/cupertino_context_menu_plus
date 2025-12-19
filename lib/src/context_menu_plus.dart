@@ -60,6 +60,79 @@ typedef _DismissCallback =
 typedef CupertinoContextMenuBuilder =
     Widget Function(BuildContext context, Animation<double> animation);
 
+/// A controller for programmatically showing and hiding a
+/// [CupertinoContextMenuPlus].
+///
+/// Pass an instance to [CupertinoContextMenuPlus.controller], then call
+/// [open] or [close] from your UI (e.g. tapping an emoji icon).
+class CupertinoContextMenuPlusController extends ChangeNotifier {
+  Object? _owner;
+  VoidCallback? _open;
+  VoidCallback? _close;
+  bool _isOpen = false;
+  bool _isDisposed = false;
+
+  /// Whether the menu is currently open.
+  bool get isOpen => _isOpen;
+
+  /// Opens the context menu (if attached).
+  void open() => _open?.call();
+
+  /// Closes the context menu (if attached and open).
+  void close() => _close?.call();
+
+  void _setIsOpen(bool value) {
+    if (_isDisposed) {
+      return;
+    }
+    if (_isOpen == value) {
+      return;
+    }
+    _isOpen = value;
+    notifyListeners();
+  }
+
+  void _attach({
+    required Object owner,
+    required VoidCallback open,
+    required VoidCallback close,
+    required bool Function() isOpen,
+  }) {
+    assert(
+      !_isDisposed,
+      'A disposed CupertinoContextMenuPlusController cannot be re-attached.',
+    );
+    assert(
+      _owner == null || identical(_owner, owner),
+      'This controller is already attached to another CupertinoContextMenuPlus.',
+    );
+    _owner = owner;
+    _open = open;
+    _close = close;
+    _setIsOpen(isOpen());
+  }
+
+  void _detach(Object owner) {
+    if (!identical(_owner, owner)) {
+      return;
+    }
+    _owner = null;
+    _open = null;
+    _close = null;
+    _setIsOpen(false);
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _isOpen = false;
+    _owner = null;
+    _open = null;
+    _close = null;
+    super.dispose();
+  }
+}
+
 // Given a GlobalKey, return the Rect of the corresponding RenderBox's
 // paintBounds in global coordinates.
 Rect _getRect(GlobalKey globalKey) {
@@ -97,9 +170,9 @@ _ContextMenuLocation _toInternalLocation(
 /// A full-screen modal route that opens when the [child] is long-pressed.
 ///
 /// When open, the [CupertinoContextMenuPlus] shows the child in a large full-screen
-/// [Overlay] with a list of buttons specified by [actions]. The child/preview is
-/// placed in an [Expanded] widget so that it will grow to fill the Overlay if
-/// its size is unconstrained.
+/// [Overlay] with a sheet below it built from [bottomWidgetBuilder],
+/// or [actions]. The child/preview is placed in an [Expanded] widget so
+/// that it will grow to fill the Overlay if its size is unconstrained.
 ///
 /// When closed, the [CupertinoContextMenuPlus] displays the child as if the
 /// [CupertinoContextMenuPlus] were not there. Sizing and positioning is unaffected.
@@ -144,10 +217,14 @@ class CupertinoContextMenuPlus extends StatefulWidget {
 
   /// Create a context menu.
   ///
-  /// The [actions] parameter cannot be empty.
+  /// Provide either a non-empty [actions] list, or a [bottomWidgetBuilder] to
+  /// build a custom widget below the preview.
   CupertinoContextMenuPlus({
     super.key,
-    required this.actions,
+    this.actions = const <Widget>[],
+    this.bottomWidgetBuilder,
+    this.controller,
+    this.openGestureEnabled = true,
     required Widget this.child,
     this.enableHapticFeedback = false,
     this.backdropBlurSigma = kDefaultBackdropBlurSigma,
@@ -162,7 +239,7 @@ class CupertinoContextMenuPlus extends StatefulWidget {
     this.location,
     this.showGrowAnimation = true,
     this.previewLongPressTimeout = kDefaultPreviewLongPressTimeout,
-  }) : assert(actions.isNotEmpty),
+  }) : assert(actions.isNotEmpty || bottomWidgetBuilder != null),
        assert(modalTransitionDuration > Duration.zero),
        assert(modalReverseTransitionDuration > Duration.zero),
        assert(previewLongPressTimeout > Duration.zero),
@@ -173,10 +250,14 @@ class CupertinoContextMenuPlus extends StatefulWidget {
   /// Use instead of the default constructor when it is needed to have a more
   /// custom animation.
   ///
-  /// The [actions] parameter cannot be empty.
+  /// Provide either a non-empty [actions] list, or a [bottomWidgetBuilder] to
+  /// build a custom widget below the preview.
   CupertinoContextMenuPlus.builder({
     super.key,
-    required this.actions,
+    this.actions = const <Widget>[],
+    this.bottomWidgetBuilder,
+    this.controller,
+    this.openGestureEnabled = true,
     required this.builder,
     this.enableHapticFeedback = false,
     this.backdropBlurSigma = kDefaultBackdropBlurSigma,
@@ -191,7 +272,7 @@ class CupertinoContextMenuPlus extends StatefulWidget {
     this.location,
     this.showGrowAnimation = true,
     this.previewLongPressTimeout = kDefaultPreviewLongPressTimeout,
-  }) : assert(actions.isNotEmpty),
+  }) : assert(actions.isNotEmpty || bottomWidgetBuilder != null),
        assert(modalTransitionDuration > Duration.zero),
        assert(modalReverseTransitionDuration > Duration.zero),
        assert(previewLongPressTimeout > Duration.zero),
@@ -421,8 +502,25 @@ class CupertinoContextMenuPlus extends StatefulWidget {
   ///
   /// These actions are typically [CupertinoContextMenuAction]s.
   ///
-  /// This parameter must not be empty.
+  /// This is ignored if [bottomWidgetBuilder] is provided.
   final List<Widget> actions;
+
+  /// Builds the bottom widget shown below the preview when the menu is open.
+  ///
+  /// When provided, this replaces the default actions sheet built from
+  /// [actions].
+  final WidgetBuilder? bottomWidgetBuilder;
+
+  /// Controls a [CupertinoContextMenuPlus] programmatically.
+  ///
+  /// Call [CupertinoContextMenuPlusController.open] / .close to show/hide the
+  /// menu without relying on the built-in gesture.
+  final CupertinoContextMenuPlusController? controller;
+
+  /// Whether the built-in long-press gesture is enabled.
+  ///
+  /// When false, the menu can still be opened via [controller].
+  final bool openGestureEnabled;
 
   /// Blur strength applied to the background behind the menu route.
   ///
@@ -517,10 +615,13 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
   // Animates the child while it's opening.
   late AnimationController _openController;
   Rect? _decoyChildEndRect;
+  bool _previousChildRectWasScaled = false;
   late double _scaleFactor;
   OverlayEntry? _lastOverlayEntry;
   _ContextMenuRoute<void>? _route;
   late final TapGestureRecognizer _tapGestureRecognizer;
+  bool _pendingControllerOpen = false;
+  bool _pendingControllerClose = false;
 
   double get _animationOpensAt => CupertinoContextMenuPlus.animationOpensAtFor(
     widget.previewLongPressTimeout,
@@ -542,11 +643,26 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
       ..onTapDown = _onTapDown
       ..onTapUp = _onTapUp
       ..onTap = _onTap;
+    widget.controller?._attach(
+      owner: this,
+      open: _openFromController,
+      close: _closeFromController,
+      isOpen: () => _route != null,
+    );
   }
 
   @override
   void didUpdateWidget(CupertinoContextMenuPlus oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?._detach(this);
+      widget.controller?._attach(
+        owner: this,
+        open: _openFromController,
+        close: _closeFromController,
+        isOpen: () => _route != null,
+      );
+    }
     if (oldWidget.previewLongPressTimeout != widget.previewLongPressTimeout) {
       _dismissContextMenuRoute();
       _closeContextMenu();
@@ -566,6 +682,68 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
     }
   }
 
+  void _openFromController() {
+    if (!mounted || _route != null) {
+      return;
+    }
+
+    final SchedulerPhase phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase != SchedulerPhase.idle &&
+        phase != SchedulerPhase.postFrameCallbacks) {
+      if (_pendingControllerOpen) {
+        return;
+      }
+      _pendingControllerOpen = true;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        _pendingControllerOpen = false;
+        _openFromController();
+      }, debugLabel: 'openContextMenuFromController');
+      return;
+    }
+
+    _onTapCompleted();
+    _closeContextMenu();
+    _openController.reset();
+
+    final Rect childRect = _getRect(_childGlobalKey);
+    _scaleFactor = _getScaleFactor(
+      childRect,
+      MediaQuery.paddingOf(context),
+      MediaQuery.sizeOf(context),
+    );
+    _decoyChildEndRect = childRect;
+    _previousChildRectWasScaled = false;
+
+    if (widget.enableHapticFeedback) {
+      HapticFeedback.heavyImpact();
+    }
+    _pushContextMenuRoute(
+      previousChildRect: childRect,
+      previousChildRectWasScaled: false,
+    );
+  }
+
+  void _closeFromController() {
+    if (!mounted || _route == null) {
+      return;
+    }
+
+    final SchedulerPhase phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase != SchedulerPhase.idle &&
+        phase != SchedulerPhase.postFrameCallbacks) {
+      if (_pendingControllerClose) {
+        return;
+      }
+      _pendingControllerClose = true;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        _pendingControllerClose = false;
+        _closeFromController();
+      }, debugLabel: 'closeContextMenuFromController');
+      return;
+    }
+    Navigator.of(context, rootNavigator: true).pop();
+  }
+
   void _dismissContextMenuRoute() {
     final _ContextMenuRoute<void>? route = _route;
     if (route == null) {
@@ -575,6 +753,7 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
     route.animation?.removeStatusListener(_routeAnimationStatusListener);
     route.navigator?.removeRoute(route);
     _route = null;
+    widget.controller?._setIsOpen(false);
   }
 
   void _listenerCallback() {
@@ -668,17 +847,21 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
   }
 
   // Push the new route and open the CupertinoContextMenuPlus overlay.
-  void _openContextMenu() {
+  void _pushContextMenuRoute({
+    required Rect previousChildRect,
+    required bool previousChildRectWasScaled,
+  }) {
     setState(() {
       _childHidden = true;
     });
 
     _route = _ContextMenuRoute<void>(
       actions: widget.actions,
+      bottomWidgetBuilder: widget.bottomWidgetBuilder,
       barrierLabel: CupertinoLocalizations.of(context).menuDismissLabel,
       contextMenuLocation: _contextMenuLocation,
-      previousChildRect: _decoyChildEndRect!,
-      previousChildRectWasScaled: widget.showGrowAnimation,
+      previousChildRect: previousChildRect,
+      previousChildRectWasScaled: previousChildRectWasScaled,
       scaleFactor: _scaleFactor,
       topWidget: widget.topWidget,
       backdropBlurSigma: widget.backdropBlurSigma,
@@ -703,6 +886,7 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
     );
     Navigator.of(context, rootNavigator: true).push<void>(_route!);
     _route!.animation!.addStatusListener(_routeAnimationStatusListener);
+    widget.controller?._setIsOpen(true);
   }
 
   void _removeContextMenuDecoy() {
@@ -734,7 +918,10 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
         }
         _closeContextMenu();
       case AnimationStatus.completed:
-        _openContextMenu();
+        _pushContextMenuRoute(
+          previousChildRect: _decoyChildEndRect!,
+          previousChildRectWasScaled: _previousChildRectWasScaled,
+        );
         _removeContextMenuDecoy();
       case AnimationStatus.forward:
       case AnimationStatus.reverse:
@@ -758,6 +945,7 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
     }
     _route!.animation!.removeStatusListener(_routeAnimationStatusListener);
     _route = null;
+    widget.controller?._setIsOpen(false);
   }
 
   void _onTapCompleted() {
@@ -792,6 +980,7 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
       setState(() {
         _childHidden = true;
       });
+      _previousChildRectWasScaled = true;
 
       _decoyChildEndRect = Rect.fromCenter(
         center: childRect.center,
@@ -827,6 +1016,7 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
       ).insert(_lastOverlayEntry!);
     } else {
       _decoyChildEndRect = childRect;
+      _previousChildRectWasScaled = false;
     }
 
     _openController.forward();
@@ -834,24 +1024,31 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
 
   @override
   Widget build(BuildContext context) {
+    Widget child = TickerMode(
+      enabled: !_childHidden,
+      child: Visibility.maintain(
+        key: _childGlobalKey,
+        visible: !_childHidden,
+        child: widget.builder(context, _openController),
+      ),
+    );
+
+    if (!widget.openGestureEnabled) {
+      return child;
+    }
+
     return MouseRegion(
       cursor: kIsWeb ? SystemMouseCursors.click : MouseCursor.defer,
       child: Listener(
         onPointerDown: _tapGestureRecognizer.addPointer,
-        child: TickerMode(
-          enabled: !_childHidden,
-          child: Visibility.maintain(
-            key: _childGlobalKey,
-            visible: !_childHidden,
-            child: widget.builder(context, _openController),
-          ),
-        ),
+        child: child,
       ),
     );
   }
 
   @override
   void dispose() {
+    widget.controller?._detach(this);
     _dismissContextMenuRoute();
     _closeContextMenu();
     _tapGestureRecognizer.dispose();
@@ -1017,6 +1214,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
   // Build a _ContextMenuRoute.
   _ContextMenuRoute({
     required List<Widget> actions,
+    required WidgetBuilder? bottomWidgetBuilder,
     required _ContextMenuLocation contextMenuLocation,
     this.barrierLabel,
     required CupertinoContextMenuBuilder builder,
@@ -1033,11 +1231,12 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
     required Duration reverseTransitionDuration,
     Color? actionsBackgroundColor,
     BorderRadius? actionsBorderRadius,
-  }) : assert(actions.isNotEmpty),
+  }) : assert(actions.isNotEmpty || bottomWidgetBuilder != null),
        assert(backdropBlurSigma >= 0.0),
        assert(transitionDuration > Duration.zero),
        assert(reverseTransitionDuration > Duration.zero),
        _actions = actions,
+       _bottomWidgetBuilder = bottomWidgetBuilder,
        _builder = builder,
        _contextMenuLocation = contextMenuLocation,
        _previousChildRect = previousChildRect,
@@ -1054,6 +1253,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
        _actionsBorderRadius = actionsBorderRadius;
 
   final List<Widget> _actions;
+  final WidgetBuilder? _bottomWidgetBuilder;
   final CupertinoContextMenuBuilder _builder;
   final GlobalKey _childGlobalKey = GlobalKey();
   final _ContextMenuLocation _contextMenuLocation;
@@ -1138,7 +1338,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
           context,
         );
         final Color color = resolvedBarrierColor.withValues(
-          alpha: resolvedBarrierColor.a * t,
+          alpha: clampDouble(resolvedBarrierColor.a * t, 0.0, 1.0),
         );
 
         Widget barrier = ModalBarrier(
@@ -1394,6 +1594,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
                     child: _ContextMenuSheet(
                       key: _sheetGlobalKey,
                       actions: _actions,
+                      bottomWidgetBuilder: _bottomWidgetBuilder,
                       contextMenuLocation: _contextMenuLocation,
                       orientation: orientation,
                       actionsBackgroundColor: _actionsBackgroundColor,
@@ -1431,6 +1632,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
         // in the final position.
         return _ContextMenuRouteStatic(
           actions: _actions,
+          bottomWidgetBuilder: _bottomWidgetBuilder,
           childGlobalKey: _childGlobalKey,
           contextMenuLocation: _contextMenuLocation,
           onDismiss: _onDismiss,
@@ -1460,6 +1662,7 @@ class _ContextMenuRoute<T> extends PopupRoute<T> {
 class _ContextMenuRouteStatic extends StatefulWidget {
   const _ContextMenuRouteStatic({
     this.actions,
+    this.bottomWidgetBuilder,
     required this.child,
     this.childGlobalKey,
     required this.contextMenuLocation,
@@ -1474,6 +1677,7 @@ class _ContextMenuRouteStatic extends StatefulWidget {
   });
 
   final List<Widget>? actions;
+  final WidgetBuilder? bottomWidgetBuilder;
   final Widget child;
   final GlobalKey? childGlobalKey;
   final _ContextMenuLocation contextMenuLocation;
@@ -1644,7 +1848,8 @@ class _ContextMenuRouteStaticState extends State<_ContextMenuRouteStatic>
       builder: _buildSheetAnimation,
       child: _ContextMenuSheet(
         key: widget.sheetGlobalKey,
-        actions: widget.actions!,
+        actions: widget.actions ?? const <Widget>[],
+        bottomWidgetBuilder: widget.bottomWidgetBuilder,
         contextMenuLocation: widget.contextMenuLocation,
         orientation: widget.orientation,
         actionsBackgroundColor: widget.actionsBackgroundColor,
@@ -1783,13 +1988,15 @@ class _ContextMenuSheet extends StatefulWidget {
   _ContextMenuSheet({
     super.key,
     required this.actions,
+    required this.bottomWidgetBuilder,
     required this.contextMenuLocation,
     required this.orientation,
     this.actionsBackgroundColor,
     this.actionsBorderRadius,
-  }) : assert(actions.isNotEmpty);
+  }) : assert(actions.isNotEmpty || bottomWidgetBuilder != null);
 
   final List<Widget> actions;
+  final WidgetBuilder? bottomWidgetBuilder;
   final _ContextMenuLocation contextMenuLocation;
   final Orientation orientation;
   final Color? actionsBackgroundColor;
@@ -1822,6 +2029,10 @@ class _ContextMenuSheetState extends State<_ContextMenuSheet> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.bottomWidgetBuilder != null) {
+      return widget.bottomWidgetBuilder!(context);
+    }
+
     final Color backgroundColor = CupertinoDynamicColor.resolve(
       widget.actionsBackgroundColor ??
           CupertinoContextMenuPlus.kBackgroundColor,
@@ -1851,11 +2062,7 @@ class _ContextMenuSheetState extends State<_ContextMenuSheet> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        widget.actions.first,
-                        for (final Widget action in widget.actions.skip(1))
-                          action,
-                      ],
+                      children: widget.actions,
                     ),
                   ),
                 ),
