@@ -1742,4 +1742,54 @@ void main() {
     );
     expect(tester.getSize(find.byType(CupertinoContextMenu)), Size.zero);
   });
+
+  testWidgets('CupertinoContextMenuPlus calls onOpened after opening', (
+    WidgetTester tester,
+  ) async {
+    final CupertinoContextMenuPlusController controller =
+        CupertinoContextMenuPlusController();
+    int openedCount = 0;
+    bool? isOpenWhenOpened;
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: CupertinoPageScaffold(
+          child: Center(
+            child: CupertinoContextMenuPlus(
+              controller: controller,
+              openGestureEnabled: false,
+              actions: <Widget>[
+                CupertinoContextMenuAction(
+                  child: const Text('Action'),
+                  onPressed: () {},
+                ),
+              ],
+              onOpened: () {
+                openedCount += 1;
+                isOpenWhenOpened = controller.isOpen;
+              },
+              child: getChild(width: 120, height: 80),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(controller.isOpen, isFalse);
+    controller.open();
+    await tester.pumpAndSettle();
+
+    expect(openedCount, 1);
+    expect(isOpenWhenOpened, isTrue);
+    expect(controller.isOpen, isTrue);
+
+    // Calling open again while open does nothing.
+    controller.open();
+    await tester.pump();
+    expect(openedCount, 1);
+
+    controller.close();
+    await tester.pumpAndSettle();
+    expect(controller.isOpen, isFalse);
+  });
 }

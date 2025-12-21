@@ -11,6 +11,7 @@ A forked and enhanced version of Flutter's `CupertinoContextMenu` with:
 - `topWidget`: an optional widget shown above the preview when the menu opens.
 - `bottomWidgetBuilder`: build a fully custom widget below the preview (alternative to `actions`).
 - `controller` / `openGestureEnabled`: optionally open the menu programmatically (e.g. from an emoji button), and/or disable long-press.
+- `onOpened`: a callback fired when the menu route is pushed (menu begins opening).
 - `location`: an optional override for consistent left/center/right alignment (useful for chat bubbles that may cross the screen midpoint).
 - `showGrowAnimation`: optionally disable the small pre-open “grow” animation (decoy overlay) when pressing.
 - `previewLongPressTimeout`: optionally change how long the user must press/hold before the menu opens.
@@ -27,6 +28,7 @@ final controller = CupertinoContextMenuPlusController();
 CupertinoContextMenuPlus(
   controller: controller,
   openGestureEnabled: false,
+  onOpened: () => debugPrint('Context menu opened'),
   location: CupertinoContextMenuLocation.right, // or .left / .center
   showGrowAnimation: false,
   backdropBlurSigma: 8,

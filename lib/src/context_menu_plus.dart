@@ -224,6 +224,7 @@ class CupertinoContextMenuPlus extends StatefulWidget {
     this.actions = const <Widget>[],
     this.bottomWidgetBuilder,
     this.controller,
+    this.onOpened,
     this.openGestureEnabled = true,
     required Widget this.child,
     this.enableHapticFeedback = false,
@@ -257,6 +258,7 @@ class CupertinoContextMenuPlus extends StatefulWidget {
     this.actions = const <Widget>[],
     this.bottomWidgetBuilder,
     this.controller,
+    this.onOpened,
     this.openGestureEnabled = true,
     required this.builder,
     this.enableHapticFeedback = false,
@@ -516,6 +518,12 @@ class CupertinoContextMenuPlus extends StatefulWidget {
   /// Call [CupertinoContextMenuPlusController.open] / .close to show/hide the
   /// menu without relying on the built-in gesture.
   final CupertinoContextMenuPlusController? controller;
+
+  /// Called when the context menu route is pushed.
+  ///
+  /// This is invoked once per open, after the menu begins opening (i.e. after
+  /// `Navigator.push`), and before it is dismissed.
+  final VoidCallback? onOpened;
 
   /// Whether the built-in long-press gesture is enabled.
   ///
@@ -905,6 +913,7 @@ class _CupertinoContextMenuPlusState extends State<CupertinoContextMenuPlus>
     Navigator.of(context, rootNavigator: true).push<void>(_route!);
     _route!.animation!.addStatusListener(_routeAnimationStatusListener);
     widget.controller?._setIsOpen(true);
+    widget.onOpened?.call();
   }
 
   void _removeContextMenuDecoy() {
