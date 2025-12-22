@@ -81,6 +81,7 @@ class _ChatExampleState extends State<ChatExample> {
       seeded.add(
         _ChatMessageData(
           id: 'seed_$i',
+          isTimestamp: i == 0,
           isSent: isSent,
           text: switch (i % 6) {
             0 => 'Quick check-in: are we still on for lunch?',
@@ -131,6 +132,7 @@ class _ChatExampleState extends State<ChatExample> {
           id: 'msg_${DateTime.now().microsecondsSinceEpoch}',
           isSent: true,
           text: text,
+          isTimestamp: false,
           timestamp: DateTime.now(),
         ),
       );
@@ -175,54 +177,58 @@ class _ChatExampleState extends State<ChatExample> {
           children: <Widget>[
             Expanded(
               child: DraggableListView(
-                builder: (
-                  BuildContext context,
-                  double dragOffset,
-                  Animation<double> slideAnimation,
-                ) {
-                  return ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16.0),
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    itemCount: _messages.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      final _ChatMessageData msg = _messages[index];
-                      // Find the last received message
-                      final int lastReceivedIndex = _messages.lastIndexWhere(
-                        (_ChatMessageData m) => !m.isSent,
-                      );
-                      final bool isLastReceived =
-                          !msg.isSent && index == lastReceivedIndex;
+                builder:
+                    (
+                      BuildContext context,
+                      double dragOffset,
+                      Animation<double> slideAnimation,
+                    ) {
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(16.0),
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        itemCount: _messages.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          final _ChatMessageData msg = _messages[index];
+                          // Find the last received message
+                          final int lastReceivedIndex = _messages
+                              .lastIndexWhere(
+                                (_ChatMessageData m) => !m.isSent,
+                              );
+                          final bool isLastReceived =
+                              !msg.isSent && index == lastReceivedIndex;
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: ChatMessage(
-                          text: msg.text,
-                          time: _formatTime(msg.timestamp),
-                          isSent: msg.isSent,
-                          isDark: _isDark,
-                          bubbleColor: msg.isSent
-                              ? CupertinoDynamicColor.resolve(
-                                  CupertinoColors.activeBlue,
-                                  context,
-                                )
-                              : (_isDark
-                                  ? const Color(0xFF2C2C2E)
-                                  : CupertinoColors.systemGrey5
-                                      .resolveFrom(context)),
-                          bubbleTextColor: msg.isSent
-                              ? CupertinoColors.white
-                              : theme.textTheme.textStyle.color ??
-                                  CupertinoColors.label,
-                          dragOffset: dragOffset,
-                          slideAnimation: slideAnimation,
-                          showEmojiChip: isLastReceived,
-                        ),
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: ChatMessage(
+                              isTimestamp: msg.isTimestamp,
+                              timestamp: _formatTime(msg.timestamp),
+                              text: msg.text,
+                              time: _formatTime(msg.timestamp),
+                              isSent: msg.isSent,
+                              isDark: _isDark,
+                              bubbleColor: msg.isSent
+                                  ? CupertinoDynamicColor.resolve(
+                                      CupertinoColors.activeBlue,
+                                      context,
+                                    )
+                                  : (_isDark
+                                        ? const Color(0xFF2C2C2E)
+                                        : CupertinoColors.systemGrey5
+                                              .resolveFrom(context)),
+                              bubbleTextColor: msg.isSent
+                                  ? CupertinoColors.white
+                                  : theme.textTheme.textStyle.color ??
+                                        CupertinoColors.label,
+                              dragOffset: dragOffset,
+                              slideAnimation: slideAnimation,
+                              showEmojiChip: isLastReceived,
+                            ),
+                          );
+                        },
                       );
                     },
-                  );
-                },
               ),
             ),
             ComposerBar(
@@ -244,10 +250,12 @@ class _ChatMessageData {
     required this.isSent,
     required this.text,
     required this.timestamp,
+    required this.isTimestamp,
   });
 
   final String id;
   final bool isSent;
   final String text;
   final DateTime timestamp;
+  final bool isTimestamp;
 }

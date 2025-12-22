@@ -25,12 +25,16 @@ class ChatMessage extends StatefulWidget {
     required this.dragOffset,
     required this.slideAnimation,
     required this.showEmojiChip,
+    required this.isTimestamp,
+    required this.timestamp,
   });
 
   final String text;
   final String time;
   final bool isSent;
   final bool isDark;
+  final bool isTimestamp;
+  final String timestamp;
   final Color bubbleColor;
   final Color bubbleTextColor;
   final double dragOffset;
@@ -54,8 +58,9 @@ class _ChatMessageState extends State<ChatMessage> {
 
   @override
   Widget build(BuildContext context) {
-    final Color actionsBackgroundColor =
-        widget.isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF8F8F8);
+    final Color actionsBackgroundColor = widget.isDark
+        ? const Color(0xFF1C1C1E)
+        : const Color(0xFFF8F8F8);
     final BorderRadius actionsBorderRadius = BorderRadius.circular(18);
 
     final Widget bubble = Container(
@@ -78,8 +83,9 @@ class _ChatMessageState extends State<ChatMessage> {
       onPressed: _menuController.open,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color:
-              widget.isDark ? const Color(0xFF2C2C2E) : const Color(0xFFFFFFFF),
+          color: widget.isDark
+              ? const Color(0xFF2C2C2E)
+              : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: widget.isDark
@@ -109,8 +115,8 @@ class _ChatMessageState extends State<ChatMessage> {
         : widget.dragOffset;
 
     // Calculate timestamp opacity based on drag distance
-    final double timestampOpacity =
-        (widget.dragOffset.abs() / _maxDragDistance).clamp(0.0, 1.0);
+    final double timestampOpacity = (widget.dragOffset.abs() / _maxDragDistance)
+        .clamp(0.0, 1.0);
 
     // Build the timestamp that will be positioned off-screen
     final Widget timestamp = Opacity(
@@ -127,83 +133,93 @@ class _ChatMessageState extends State<ChatMessage> {
       ),
     );
 
-    return Transform.translate(
-      offset: Offset(animatedOffset, 0),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: <Widget>[
-          // Message bubble in its normal position
-          Align(
-            alignment:
-                widget.isSent ? Alignment.centerRight : Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 24),
-              child: CupertinoContextMenuPlus(
-                controller: _menuController,
-                openGestureEnabled: true,
-                previewLongPressTimeout: Duration(milliseconds: 250),
-                backdropBlurCurve: const Interval(
-                  0.0,
-                  0.18,
-                  curve: Curves.easeOut,
-                ),
-                location: widget.isSent
-                    ? CupertinoContextMenuLocation.right
-                    : CupertinoContextMenuLocation.left,
-                showGrowAnimation: false,
-                enableHapticFeedback: true,
-                backdropBlurSigma: widget.isDark ? 12 : 10,
-                modalReverseTransitionDuration: Duration(
-                  milliseconds: widget.isDark ? 160 : 180,
-                ),
-                barrierColor: widget.isDark
-                    ? const Color(0x66000000)
-                    : const Color(0x3304040F),
-                actionsBackgroundColor: actionsBackgroundColor,
-                actionsBorderRadius: actionsBorderRadius,
-                actions: _buildActions(
-                  context,
-                  isDark: widget.isDark,
-                  text: widget.text,
-                  time: widget.time,
-                  isSent: widget.isSent,
-                ),
-                topWidget: _ReactionsTopWidget(isDark: widget.isDark),
-                child: bubble,
-              ),
-            ),
-          ),
-          // Timestamp positioned off-screen to the right, slides in with drag
-          Positioned(
-            right: -80, // Start off-screen (negative value pushes it outside)
-            top: 0,
-            bottom: 24,
-            child: Center(child: timestamp),
-          ),
-          // Emoji chip at bottom-left (only for last received message)
-          if (widget.showEmojiChip)
-            Positioned(
-              left: 12,
-              bottom: 3,
-              child: AnimatedBuilder(
-                animation: _menuController,
-                child: emojiChip,
-                builder: (BuildContext context, Widget? child) {
-                  final bool visible = !_menuController.isOpen;
-                  return IgnorePointer(
-                    ignoring: !visible,
-                    child: AnimatedOpacity(
-                      opacity: visible ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 180),
-                      curve: Curves.easeOut,
-                      child: child,
+    return Stack(
+      children: [
+        if (widget.isTimestamp)
+          Center(child: Text(widget.timestamp))
+        else
+          Transform.translate(
+            offset: Offset(animatedOffset, 0),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                // Message bubble in its normal position
+                Align(
+                  alignment: widget.isSent
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: CupertinoContextMenuPlus(
+                      controller: _menuController,
+                      openGestureEnabled: true,
+                      onOpened: () => debugPrint('Context menu opened'),
+                      previewLongPressTimeout: Duration(milliseconds: 250),
+                      backdropBlurCurve: const Interval(
+                        0.0,
+                        0.18,
+                        curve: Curves.easeOut,
+                      ),
+                      location: widget.isSent
+                          ? CupertinoContextMenuLocation.right
+                          : CupertinoContextMenuLocation.left,
+                      showGrowAnimation: false,
+                      enableHapticFeedback: true,
+                      backdropBlurSigma: widget.isDark ? 12 : 10,
+                      modalReverseTransitionDuration: Duration(
+                        milliseconds: widget.isDark ? 160 : 180,
+                      ),
+                      barrierColor: widget.isDark
+                          ? const Color(0x66000000)
+                          : const Color(0x3304040F),
+                      actionsBackgroundColor: actionsBackgroundColor,
+                      actionsBorderRadius: actionsBorderRadius,
+                      actions: _buildActions(
+                        context,
+                        isDark: widget.isDark,
+                        text: widget.text,
+                        time: widget.time,
+                        isSent: widget.isSent,
+                      ),
+                      topWidget: _ReactionsTopWidget(isDark: widget.isDark),
+                      child: bubble,
                     ),
-                  );
-                },
-              ),
+                  ),
+                ),
+                // Timestamp positioned off-screen to the right, slides in with drag
+                Positioned(
+                  right:
+                      -80, // Start off-screen (negative value pushes it outside)
+                  top: 0,
+                  bottom: 24,
+                  child: Center(child: timestamp),
+                ),
+                // Emoji chip at bottom-left (only for last received message)
+                if (widget.showEmojiChip)
+                  Positioned(
+                    left: 12,
+                    bottom: 3,
+                    child: AnimatedBuilder(
+                      animation: _menuController,
+                      child: emojiChip,
+                      builder: (BuildContext context, Widget? child) {
+                        final bool visible = !_menuController.isOpen;
+                        return IgnorePointer(
+                          ignoring: !visible,
+                          child: AnimatedOpacity(
+                            opacity: visible ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 180),
+                            curve: Curves.easeOut,
+                            child: child,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
@@ -214,14 +230,18 @@ class _ChatMessageState extends State<ChatMessage> {
     required String time,
     required bool isSent,
   }) {
-    final Color primaryText =
-        isDark ? CupertinoColors.white : const Color(0xFF111111);
-    final Color secondaryText =
-        isDark ? CupertinoColors.systemGrey2 : CupertinoColors.systemGrey;
-    final Color tileBackground =
-        isDark ? const Color(0xFF2C2C2E) : const Color(0xFFFFFFFF);
-    final Color divider =
-        isDark ? const Color(0xFF3A3A3C) : const Color(0x14000000);
+    final Color primaryText = isDark
+        ? CupertinoColors.white
+        : const Color(0xFF111111);
+    final Color secondaryText = isDark
+        ? CupertinoColors.systemGrey2
+        : CupertinoColors.systemGrey;
+    final Color tileBackground = isDark
+        ? const Color(0xFF2C2C2E)
+        : const Color(0xFFFFFFFF);
+    final Color divider = isDark
+        ? const Color(0xFF3A3A3C)
+        : const Color(0x14000000);
 
     return <Widget>[
       Padding(
@@ -295,10 +315,12 @@ class _ReactionsTopWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color background =
-        isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7);
-    final Color border =
-        isDark ? const Color(0xFF3A3A3C) : const Color(0x00000000);
+    final Color background = isDark
+        ? const Color(0xFF2C2C2E)
+        : const Color(0xFFF2F2F7);
+    final Color border = isDark
+        ? const Color(0xFF3A3A3C)
+        : const Color(0x00000000);
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 340),
       child: Container(
