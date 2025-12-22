@@ -1,3 +1,9 @@
+## [1.0.3]
+
+### 2025-12-22
+
+- Add `onOpened` callback to notify after the menu route is pushed (opening starts; not when the transition finishes).
+
 ## [1.0.2]
 
 ### 2025-12-19

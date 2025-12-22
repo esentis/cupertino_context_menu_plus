@@ -521,8 +521,10 @@ class CupertinoContextMenuPlus extends StatefulWidget {
 
   /// Called when the context menu route is pushed.
   ///
-  /// This is invoked once per open, after the menu begins opening (i.e. after
-  /// `Navigator.push`), and before it is dismissed.
+  /// This is invoked once per open, right after `Navigator.push` is called.
+  ///
+  /// Note: this callback indicates that opening has started; it does not wait
+  /// for the route transition animation to finish.
   final VoidCallback? onOpened;
 
   /// Whether the built-in long-press gesture is enabled.
