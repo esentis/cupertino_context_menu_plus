@@ -1,7 +1,18 @@
 name: cupertino_context_menu_plus
 description: "An enhanced version of Flutter's CupertinoContextMenu."
-version: 1.0.2
+version: 1.0.3
 homepage: https://github.com/esentis/cupertino_context_menu_plus
+
+topics:
+  - cupertino
+  - context-menu
+  - reactions
+  - widget
+  - animation
+
+screenshots:
+  - description: "Customizable context menu"
+    path: screenshots/1.gif
 
 environment:
   sdk: ^3.10.1
