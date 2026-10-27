@@ -10,7 +10,8 @@ library;
 
 import 'package:clock/clock.dart';
 import 'package:cupertino_context_menu_plus/cupertino_context_menu_plus.dart';
-import 'package:flutter/cupertino.dart' hide CupertinoContextMenuBuilder;
+import 'package:cupertino_ui/cupertino_ui.dart'
+    hide CupertinoContextMenuBuilder;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -497,8 +498,7 @@ void main() {
       },
     );
 
-    testWidgets('CupertinoContextMenu with a builder can change the animation',
-        (
+    testWidgets('CupertinoContextMenu with a builder can change the animation', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(

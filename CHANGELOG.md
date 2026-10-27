@@ -1,3 +1,11 @@
+## [2.0.0]
+
+### 2026-10-27
+
+- **Breaking:** Migrated from `package:flutter/cupertino.dart` to the standalone [`cupertino_ui`](https://pub.dev/packages/cupertino_ui) package. In apps built on `cupertino_ui` or `material_ui`, opening the menu threw `No CupertinoLocalizations found`.
+- **Breaking:** Minimum SDK raised to Dart `3.12.0` / Flutter `3.44.0`, as required by `cupertino_ui`.
+- Migration: run `flutter pub add cupertino_ui` and `dart fix --apply --code=migrate_design_widgets` in your app. Apps still on `package:flutter/cupertino.dart` or `package:flutter/material.dart` should stay on `cupertino_context_menu_plus: ^1.0.3`.
+
 ## [1.0.3]
 
 ### 2025-12-22

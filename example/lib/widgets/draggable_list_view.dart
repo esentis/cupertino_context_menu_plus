@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 /// A draggable list view that reveals content on horizontal drag.
 ///
@@ -18,7 +18,8 @@ class DraggableListView extends StatefulWidget {
     BuildContext context,
     double dragOffset,
     Animation<double> slideAnimation,
-  ) builder;
+  )
+  builder;
 
   /// Maximum distance the user can drag (in pixels)
   final double maxDragDistance;

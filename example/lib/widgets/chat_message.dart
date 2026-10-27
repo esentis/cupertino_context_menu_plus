@@ -1,5 +1,5 @@
 import 'package:cupertino_context_menu_plus/cupertino_context_menu_plus.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/services.dart';
 
 const List<String> _reactionImages = <String>[

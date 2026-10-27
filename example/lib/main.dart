@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 import 'widgets/chat_message.dart';
 import 'widgets/composer_bar.dart';

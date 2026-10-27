@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 /// Message composer bar widget with input field and send button.
 class ComposerBar extends StatelessWidget {
@@ -18,10 +18,12 @@ class ComposerBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final EdgeInsets viewInsets = MediaQuery.viewInsetsOf(context);
-    final Color background =
-        isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
-    final Color border =
-        isDark ? const Color(0xFF2C2C2E) : const Color(0x00000000);
+    final Color background = isDark
+        ? const Color(0xFF1C1C1E)
+        : const Color(0xFFF2F2F7);
+    final Color border = isDark
+        ? const Color(0xFF2C2C2E)
+        : const Color(0x00000000);
 
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
